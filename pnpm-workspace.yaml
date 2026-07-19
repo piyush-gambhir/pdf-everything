@@ -1,4 +1,4 @@
 packages:
-  - "web"
+  - "console"
   - "backend"
   - "types"

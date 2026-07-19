@@ -88,17 +88,7 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.17)(lightningcss@1.32.0)(msw@2.14.2(@types/node@22.19.17)(typescript@5.9.3))(terser@5.46.2)
 
-  types:
-    dependencies:
-      zod:
-        specifier: ^3.24.1
-        version: 3.25.76
-    devDependencies:
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-
-  web:
+  console:
     dependencies:
       '@pdf-everything/types':
         specifier: workspace:*
@@ -178,6 +168,16 @@ importers:
         version: 4.2.4
       typescript:
         specifier: ^5.9.3
+        version: 5.9.3
+
+  types:
+    dependencies:
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
         version: 5.9.3
 
 packages:
