@@ -1,0 +1,37 @@
+---
+title: Quickstart
+description: Run your first PDF operation over HTTP.
+---
+
+Every tool is a `POST` with `multipart/form-data`: one or more files, plus an
+`options` field containing JSON.
+
+## Merge two PDFs
+
+```bash
+curl -X POST "$API_ORIGIN/api/v1/organize/merge" \
+  -F "files=@first.pdf" \
+  -F "files=@second.pdf" \
+  -F 'options={}' \
+  -o merged.pdf
+```
+
+## Field names
+
+`files` is used by tools that take several documents (merge, images-to-pdf).
+Single-document tools use `file`:
+
+```bash
+curl -X POST "$API_ORIGIN/api/v1/organize/rotate" \
+  -F "file=@input.pdf" \
+  -F 'options={"angle":90}' \
+  -o rotated.pdf
+```
+
+## Responses
+
+Most tools stream a PDF straight back. Some return JSON instead — `split`
+returns a list of generated files, and `forms/extract` returns field data.
+
+Errors come back as [RFC 9457 problem documents](https://www.rfc-editor.org/rfc/rfc9457),
+so `title` and `detail` are safe to surface directly to users.

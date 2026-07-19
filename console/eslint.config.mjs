@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Staged Cloudflare assets are a copy of out/ — linting them scans the
+    // minified bundle and reports thousands of phantom problems.
+    ".cloudflare/**",
   ]),
 ]);
 

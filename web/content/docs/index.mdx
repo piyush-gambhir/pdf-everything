@@ -1,0 +1,21 @@
+---
+title: Introduction
+description: What pdf-everything is, and how the pieces fit together.
+---
+
+**pdf-everything** is a set of PDF tools that runs both as a browser console and as
+a REST API. The console is not a special client — it calls exactly the same
+endpoints any external caller would.
+
+## The pieces
+
+| Piece | What it is |
+| --- | --- |
+| **Console** | The browser UI for every tool. |
+| **API** | A REST service; the console's only backend. |
+| **Workers** | Standalone renderers (HTML → PDF, Markdown → PDF). |
+
+## Start here
+
+- [Quickstart](/docs/quickstart) — run your first operation over HTTP.
+- [Tools](/docs/tools) — what each tool does and what it accepts.

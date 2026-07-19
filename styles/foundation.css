@@ -1,0 +1,169 @@
+/**
+ * Shared design foundation for pdf-everything.
+ *
+ * Imported by BOTH console/app/globals.css and web/app/global.css so the app,
+ * the marketing site and the docs read as one product. Surface density and
+ * motion deliberately differ per surface — only the foundation lives here.
+ *
+ * Edit here, never in a copy.
+ */
+
+:root {
+    /* Light: page sits a touch off-white, cards rise to pure white,
+       sidebar recedes below the page. Three steps, zero hairlines. */
+    --background: oklch(0.983 0 0);
+    --surface-1: oklch(0.972 0 0);
+    --surface-2: oklch(1 0 0);
+    /* Cards are already pure white, so the third step has to go *down* rather
+       than up — otherwise nested chips and hover states are invisible in light
+       mode (surface-2 and surface-3 were both white). */
+    --surface-3: oklch(0.957 0 0);
+
+    --foreground: oklch(0.185 0 0);
+    --muted-foreground: oklch(0.535 0 0);
+    --subtle-foreground: oklch(0.66 0 0);
+
+    --card: var(--surface-2);
+    --card-foreground: var(--foreground);
+    --popover: var(--surface-3);
+    --popover-foreground: var(--foreground);
+
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.955 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.955 0 0);
+
+    /* shadcn's `accent` stays neutral — it is the menu/list hover wash. */
+    --accent: oklch(0.945 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+
+    /* Brand accent, kept separate from shadcn's neutral `accent`. */
+    --brand: oklch(0.54 0.19 273);
+    --brand-foreground: oklch(0.99 0 0);
+    --brand-soft: oklch(0.955 0.025 273);
+
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.925 0 0);
+    --input: oklch(0.93 0 0);
+    --ring: var(--brand);
+
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+
+    --radius: 0.625rem;
+
+    --sidebar: var(--surface-1);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--brand);
+    --sidebar-primary-foreground: var(--brand-foreground);
+    --sidebar-accent: oklch(0.94 0 0);
+    --sidebar-accent-foreground: var(--foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
+
+    /* Motion */
+    --motion-fast: 120ms;
+    --motion-base: 200ms;
+    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dark {
+    /* Dark: elevation reads as lightness. Page is the floor,
+       sidebar and cards step up off it. */
+    --background: oklch(0.145 0 0);
+    --surface-1: oklch(0.167 0 0);
+    --surface-2: oklch(0.205 0 0);
+    --surface-3: oklch(0.228 0 0);
+
+    --foreground: oklch(0.975 0 0);
+    --muted-foreground: oklch(0.685 0 0);
+    --subtle-foreground: oklch(0.53 0 0);
+
+    --card: var(--surface-2);
+    --card-foreground: var(--foreground);
+    --popover: var(--surface-3);
+    --popover-foreground: var(--foreground);
+
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.259 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.259 0 0);
+
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+
+    --brand: oklch(0.72 0.16 279);
+    --brand-foreground: oklch(0.16 0 0);
+    --brand-soft: oklch(0.72 0.16 279 / 16%);
+
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 8%);
+    --input: oklch(1 0 0 / 12%);
+    --ring: var(--brand);
+
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+
+    --sidebar: var(--surface-1);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--brand);
+    --sidebar-primary-foreground: var(--brand-foreground);
+    --sidebar-accent: oklch(0.259 0 0);
+    --sidebar-accent-foreground: var(--foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
+}
+
+
+@utility type-display {
+    font-size: 1.75rem;
+    line-height: 1.15;
+    letter-spacing: -0.021em;
+    font-weight: 600;
+}
+
+@utility type-title {
+    font-size: 1.125rem;
+    line-height: 1.3;
+    letter-spacing: -0.013em;
+    font-weight: 600;
+}
+
+@utility type-section {
+    font-size: 0.9375rem;
+    line-height: 1.35;
+    letter-spacing: -0.006em;
+    font-weight: 600;
+}
+
+@utility type-body {
+    font-size: 0.875rem;
+    line-height: 1.55;
+    font-weight: 400;
+}
+
+@utility type-caption {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    font-weight: 400;
+}
+
+@utility type-eyebrow {
+    font-size: 0.6875rem;
+    line-height: 1.3;
+    letter-spacing: 0.075em;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Fully hidden scrollbar — the region still scrolls by wheel, trackpad and
+   keyboard, but no track or thumb is ever painted. Used for the sidebar nav,
+   where a visible bar reads as clutter against a borderless surface. */

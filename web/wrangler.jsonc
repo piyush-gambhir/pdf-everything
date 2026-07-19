@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "pdf-everything-web",
+  "compatibility_date": "2026-07-20",
+  // Staged by ../scripts/prepare-cloudflare-assets.mjs so the on-disk layout
+  // mirrors the request path (see that script for why ./out won't work).
+  "assets": {
+    "directory": "./.cloudflare/assets",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  // The console Worker registers the more specific /pdf-everything/console*
+  // route, and Cloudflare matches most-specific first, so it wins over this.
+  "routes": [
+    {
+      "pattern": "projects.piyushgambhir.com/pdf-everything*",
+      "zone_name": "piyushgambhir.com"
+    }
+  ]
+}
