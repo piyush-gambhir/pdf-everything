@@ -14,3 +14,4 @@ apps/api/storage/
 *.tsbuildinfo
 out
 .wrangler
+.cloudflare

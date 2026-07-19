@@ -11,8 +11,9 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next",
-    "deploy": "wrangler deploy",
-    "preview": "wrangler dev"
+    "deploy": "pnpm build:cloudflare && wrangler deploy",
+    "preview": "wrangler dev",
+    "build:cloudflare": "next build && node ../scripts/prepare-cloudflare-assets.mjs pdf-everything/console"
   },
   "dependencies": {
     "@pdf-everything/types": "workspace:*",
