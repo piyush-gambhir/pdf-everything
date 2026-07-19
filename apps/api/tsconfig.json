@@ -1,0 +1,9 @@
+{
+  "extends": "@pdf-everything/tsconfig/nestjs.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node", "multer", "express"]
+  },
+  "include": ["src/**/*.ts"]
+}
