@@ -25,7 +25,8 @@ export async function imagesToPdf(
   for (const input of inputs) {
     const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
     const meta = await sharp(buf).metadata();
-    const isJpeg = meta.format === 'jpeg' || meta.format === 'jpg';
+    // sharp always reports JPEG as 'jpeg' (never 'jpg').
+    const isJpeg = meta.format === 'jpeg';
 
     let imgBytes: Buffer = buf;
     let asJpeg = isJpeg;

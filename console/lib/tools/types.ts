@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import type { ZodType, ZodTypeDef } from 'zod';
+import type { ZodType } from 'zod';
 
 export type ToolCategory =
   | 'organize'
@@ -44,7 +44,8 @@ export interface ToolDefinition<TOptions> {
   maxFiles: number;
   endpoint: string;
   fileFieldName: 'file' | 'files';
-  schema: ZodType<TOptions, ZodTypeDef, unknown>;
+  // zod 4 dropped the 3-generic ZodType<Output, Def, Input> form.
+  schema: ZodType<TOptions, unknown>;
   defaultOptions: TOptions;
   OptionsForm: ComponentType<OptionsFormProps<TOptions>>;
   responseType: 'binary' | 'multi-files' | 'text' | 'json';
