@@ -17,9 +17,18 @@ backend/            NestJS API
 ├── src/pdf-core/   Pure PDF feature implementations
 └── tests/          pdf-core test suite
 types/              Zod schemas shared by console + backend
+
+html-to-pdf/        standalone HTML -> PDF renderer (headless Chrome)
+markdown-to-pdf/    standalone Markdown -> PDF renderer (headless Chrome)
 ```
 
 > `web/` is reserved for the marketing/landing site (not yet built).
+>
+> **`html-to-pdf/` and `markdown-to-pdf/` are co-located as-is, not yet integrated.**
+> They are deliberately excluded from the pnpm workspace and Turbo pipeline, and
+> keep their own `package.json` / lockfile / deploy targets. Integrating them
+> (likely folding their shared puppeteer renderer into `backend`) is a separate,
+> deliberate step.
 
 ## Develop
 

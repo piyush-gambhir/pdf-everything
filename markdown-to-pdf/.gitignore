@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.superpowers/
+scripts/render-once.ts
+# locally-downloaded Chrome-for-Testing (@puppeteer/browsers)
+chrome/
+
+# env
+.env
+.env.local
+.env.development
+.env.production
+.env.deploy
+.env.deploy.production
+.env.deploy.development
+.env.deploy.lambda
+!.env.example
+!.env.deploy.example
