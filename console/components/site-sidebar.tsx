@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TOOLS } from '@/lib/tools/registry';
 import { CATEGORY_META } from '@/lib/tools/types';
@@ -24,13 +23,10 @@ export function SiteSidebar() {
         <Link
           href="/console"
           className={cn(
-            'flex items-center gap-2 rounded-lg type-section',
+            'rounded-lg type-section',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
           )}
         >
-          <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
-            <FileText className="size-4" />
-          </span>
           pdf-everything
         </Link>
       </div>
