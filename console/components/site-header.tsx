@@ -51,18 +51,17 @@ export function SiteHeader() {
   const { section, title } = useRouteLabel();
 
   return (
-    <header className="sticky top-0 z-20 shrink-0 bg-background/85 backdrop-blur-md">
+    // Same surface as the sidebar, so the two read as one continuous top band.
+    <header className="sticky top-0 z-20 shrink-0 bg-sidebar">
       <div className="flex h-14 items-center gap-3 px-6">
-        <div className="flex min-w-0 items-baseline gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <h1 className="type-title truncate">{title}</h1>
           {section ? (
-            <>
-              <span className="type-caption truncate text-muted-foreground">{section}</span>
-              <span aria-hidden className="text-muted-foreground/50">
-                /
-              </span>
-            </>
+            // A quiet chip instead of a slash-separated crumb trail.
+            <span className="shrink-0 rounded-md bg-surface-3 px-2 py-0.5 type-eyebrow text-muted-foreground">
+              {section}
+            </span>
           ) : null}
-          <h1 className="type-section truncate">{title}</h1>
         </div>
 
         <div className="ml-auto flex items-center gap-1">

@@ -101,18 +101,12 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
     }
   };
 
-  const Icon = tool.Icon;
 
   return (
     <div className="flex w-full flex-col gap-5 px-6 pt-2 pb-14">
-      {/* The page title lives in the app header now; this keeps the icon and
-          the descriptive line without repeating the tool name. */}
-      <div className="flex items-center gap-3">
-        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
-          <Icon className="size-4.5" />
-        </div>
-        <p className="type-body text-muted-foreground">{tool.description}</p>
-      </div>
+      {/* Title and category live in the app header; the page only needs the
+          descriptive line, so no icon block competing with it. */}
+      <p className="type-body text-muted-foreground">{tool.description}</p>
 
       <Card className="bg-surface-2">
         <CardContent className="space-y-6 pt-6">
