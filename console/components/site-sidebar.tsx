@@ -36,7 +36,7 @@ export function SiteSidebar() {
       </div>
 
       {/* Only this region scrolls, and its scrollbar is never painted. */}
-      <nav className="scroll-none min-h-0 flex-1 overflow-y-auto px-3 pb-2">
+      <nav className="scroll-none min-h-0 flex-1 overflow-y-auto px-3 pb-4">
         {[...grouped.entries()].map(([cat, tools]) => {
           const meta = CATEGORY_META[cat as keyof typeof CATEGORY_META];
           return (
@@ -80,12 +80,6 @@ export function SiteSidebar() {
         })}
       </nav>
 
-      {/* Pinned: sits outside the scroll region so it never clips. */}
-      <div className="shrink-0 px-5 py-3 type-caption text-muted-foreground">
-        Press{' '}
-        <kbd className="rounded bg-surface-3 px-1.5 py-0.5 font-mono text-[10px]">d</kbd> for
-        dark mode
-      </div>
     </aside>
   );
 }

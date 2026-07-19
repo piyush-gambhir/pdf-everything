@@ -104,7 +104,7 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
   const Icon = tool.Icon;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 pt-2 pb-14">
+    <div className="flex w-full flex-col gap-5 px-6 pt-2 pb-14">
       {/* The page title lives in the app header now; this keeps the icon and
           the descriptive line without repeating the tool name. */}
       <div className="flex items-center gap-3">

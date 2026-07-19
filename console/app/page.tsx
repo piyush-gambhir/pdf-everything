@@ -18,7 +18,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 pt-2 pb-14">
+    <div className="w-full px-6 pt-2 pb-14">
       {[...grouped.entries()].map(([cat, tools]) => {
         const meta = CATEGORY_META[cat as keyof typeof CATEGORY_META];
         if (!meta) return null;
@@ -28,7 +28,7 @@ export default function HomePage() {
               <h2 className="type-section">{meta.label}</h2>
               <p className="type-caption text-muted-foreground">{meta.description}</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {tools.map((t) => {
                 const Icon = t.Icon;
                 return (
