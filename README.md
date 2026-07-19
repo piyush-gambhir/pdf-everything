@@ -12,23 +12,22 @@ A unified PDF console + REST API. ~60 PDF features (merge, split, compress, conv
 ## Layout
 
 ```
-console/            Next.js app (the PDF tool console)
-backend/            NestJS API
-├── src/pdf-core/   Pure PDF feature implementations
-└── tests/          pdf-core test suite
-types/              Zod schemas shared by console + backend
-
-html-to-pdf/        standalone HTML -> PDF renderer (headless Chrome)
-markdown-to-pdf/    standalone Markdown -> PDF renderer (headless Chrome)
+console/              Next.js app (the PDF tool console)
+backend/              NestJS API
+├── src/pdf-core/     Pure PDF feature implementations
+└── tests/            pdf-core test suite
+types/                Zod schemas shared by console + backend
+workers/              Standalone rendering workers (one folder per worker)
+├── html-to-pdf/      HTML -> PDF (headless Chrome)
+└── markdown-to-pdf/  Markdown -> PDF (headless Chrome)
 ```
 
 > `web/` is reserved for the marketing/landing site (not yet built).
 >
-> **`html-to-pdf/` and `markdown-to-pdf/` are co-located as-is, not yet integrated.**
-> They are deliberately excluded from the pnpm workspace and Turbo pipeline, and
-> keep their own `package.json` / lockfile / deploy targets. Integrating them
-> (likely folding their shared puppeteer renderer into `backend`) is a separate,
-> deliberate step.
+> **Workers are co-located as-is, not yet integrated.** They sit outside the pnpm
+> workspace and Turbo pipeline and keep their own `package.json` / lockfile /
+> deploy targets. See [`workers/README.md`](workers/README.md) for status and the
+> steps needed to restore their Docker Hub publishing.
 
 ## Develop
 
