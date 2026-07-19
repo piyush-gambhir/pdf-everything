@@ -71,19 +71,43 @@ export function FileDropzone({
         onDragLeave={() => setIsDragging(false)}
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 text-center transition-colors',
+          'group flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 text-center',
+          'transition-colors duration-150',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
           isDragging
             ? 'border-primary bg-primary/5'
             : 'border-foreground/12 bg-surface-2 hover:border-foreground/25 hover:bg-surface-3',
         )}
       >
-        <FilePlus2 className="mb-3 size-8 text-muted-foreground" />
-        <p className="text-sm font-medium">
-          {multiple ? 'Drop PDF files here' : 'Drop a PDF file here'}
+        <span
+          className={cn(
+            'mb-3 grid size-12 place-items-center rounded-xl transition-colors',
+            isDragging
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-surface-3 text-muted-foreground group-hover:text-foreground',
+          )}
+        >
+          <FilePlus2 className="size-5" />
+        </span>
+        <p className="type-body font-semibold">
+          {isDragging
+            ? 'Release to add'
+            : multiple
+              ? 'Drop files here'
+              : 'Drop a file here'}
         </p>
-        <p className="text-xs text-muted-foreground">
-          or click to browse {multiple ? `(up to ${maxFiles})` : ''}
+        <p className="type-caption text-muted-foreground">
+          or <span className="font-medium text-foreground underline underline-offset-2">browse</span>{' '}
+          from your device
         </p>
         <input
           ref={inputRef}

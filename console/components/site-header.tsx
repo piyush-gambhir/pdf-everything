@@ -9,14 +9,15 @@ import { TOOLS } from '@/lib/tools/registry';
 import { CATEGORY_META } from '@/lib/tools/types';
 import { cn } from '@/lib/utils';
 
-/** Resolve the current route to a breadcrumb: category + page title. */
+/** Resolve the current route to a page title plus its category. */
 function useRouteLabel() {
   const pathname = usePathname();
-  const id = pathname === '/' ? null : pathname.replace(/^\//, '');
+  // Routes live under /console; strip that prefix to get the tool id.
+  const id = pathname.replace(/^\/console\/?/, '') || null;
   const tool = id ? TOOLS.find((t) => t.id === id) : undefined;
 
   if (!tool) {
-    return { section: null as string | null, title: id ? id : 'All tools' };
+    return { section: null as string | null, title: id ?? 'All tools' };
   }
 
   const meta = CATEGORY_META[tool.category as keyof typeof CATEGORY_META];

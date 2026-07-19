@@ -17,7 +17,6 @@ import { getTool } from '@/lib/tools/registry';
 import type { AnyToolDefinition } from '@/lib/tools/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { FileDropzone } from './file-dropzone';
 
 interface ToolLayoutProps {
@@ -102,16 +101,32 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
   };
 
 
-  return (
-    <div className="flex w-full flex-col gap-5 px-6 pt-2 pb-14">
-      {/* Title and category live in the app header; the page only needs the
-          descriptive line, so no icon block competing with it. */}
-      <p className="type-body text-muted-foreground">{tool.description}</p>
+  const formatHint = tool.acceptExtensions.length
+    ? tool.acceptExtensions.map((e) => e.replace(/^\./, '').toUpperCase()).join(', ')
+    : 'PDF';
+  const limitHint = tool.multiple
+    ? `Up to ${tool.maxFiles} files`
+    : 'One file at a time';
 
-      <Card className="bg-surface-2">
-        <CardContent className="space-y-6 pt-6">
-          {!result && (
-            <>
+  return (
+    <div className="w-full px-6 pt-2 pb-14">
+      {/* Title and category live in the app header; the page only needs the
+          descriptive line. */}
+      <p className="type-body mb-5 max-w-2xl text-muted-foreground">{tool.description}</p>
+
+      {result ? (
+        <Card className="bg-surface-2">
+          <CardContent className="pt-6">
+            <ResultView result={result} onReset={reset} tool={tool} />
+          </CardContent>
+        </Card>
+      ) : (
+        // Work area on the left, options rail on the right. The rail sticks so
+        // the run button stays reachable while a long file list scrolls.
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <Card className="bg-surface-2">
+            <CardContent className="space-y-4 pt-6">
+              <StepHeading n={1} label={tool.multiple ? 'Add your files' : 'Add your file'} />
               <FileDropzone
                 files={files}
                 onChange={setFiles}
@@ -121,38 +136,70 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
                 maxFiles={tool.maxFiles}
                 reorderable={tool.id === 'merge' || tool.id === 'images-to-pdf'}
               />
-              {files.length > 0 && (
-                <>
-                  <Separator />
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-medium">Options</h3>
-                    <tool.OptionsForm
-                      value={options as never}
-                      onChange={setOptions as never}
-                      fileNames={files.map((f) => f.name)}
-                    />
-                  </div>
-                  <Separator />
-                  <div className="flex justify-end">
-                    <Button size="lg" onClick={submit} disabled={!canSubmit}>
-                      {busy ? (
-                        <>
-                          <Loader2 className="size-4 animate-spin" />
-                          Working…
-                        </>
-                      ) : (
-                        <>{tool.title}</>
-                      )}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </>
-          )}
+            </CardContent>
+          </Card>
 
-          {result && <ResultView result={result} onReset={reset} tool={tool} />}
-        </CardContent>
-      </Card>
+          <Card className="bg-surface-2 lg:sticky lg:top-2">
+            <CardContent className="space-y-4 pt-6">
+              <StepHeading n={2} label="Configure & run" />
+
+              {files.length > 0 ? (
+                <tool.OptionsForm
+                  value={options as never}
+                  onChange={setOptions as never}
+                  fileNames={files.map((f) => f.name)}
+                />
+              ) : (
+                <p className="type-caption rounded-lg bg-surface-3 px-3 py-2.5 text-muted-foreground">
+                  Add {tool.multiple ? 'files' : 'a file'} to see the options for this tool.
+                </p>
+              )}
+
+              <Button className="w-full" size="lg" onClick={submit} disabled={!canSubmit}>
+                {busy ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Working…
+                  </>
+                ) : (
+                  <>{tool.title}</>
+                )}
+              </Button>
+
+              <dl className="space-y-1.5 pt-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="type-caption text-muted-foreground">Accepts</dt>
+                  <dd className="type-caption truncate font-medium">{formatHint}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="type-caption text-muted-foreground">Limit</dt>
+                  <dd className="type-caption font-medium">{limitHint}</dd>
+                </div>
+                {files.length > 0 && (
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="type-caption text-muted-foreground">Selected</dt>
+                    <dd className="type-caption font-medium">
+                      {files.length} {files.length === 1 ? 'file' : 'files'}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Numbered step marker so the page reads as a sequence, not a wall of controls. */
+function StepHeading({ n, label }: { n: number; label: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="grid size-5 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
+        {n}
+      </span>
+      <h2 className="type-section">{label}</h2>
     </div>
   );
 }

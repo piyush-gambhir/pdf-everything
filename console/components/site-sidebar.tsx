@@ -22,7 +22,7 @@ export function SiteSidebar() {
     <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 shrink-0 items-center px-4">
         <Link
-          href="/"
+          href="/console"
           className={cn(
             'flex items-center gap-2 rounded-lg type-section',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
@@ -46,7 +46,7 @@ export function SiteSidebar() {
               </p>
               <ul className="space-y-0.5">
                 {tools.map((t) => {
-                  const href = `/${t.id}`;
+                  const href = `/console/${t.id}`;
                   const active = pathname === href;
                   const Icon = t.Icon;
                   return (
