@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "pdf-everything-console",
+  "compatibility_date": "2026-07-20",
+  "assets": {
+    "directory": "./out",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  // More specific than the web worker's /pdf-everything* route, and Cloudflare
+  // matches the most specific route — so this wins for /pdf-everything/console.
+  "routes": [
+    {
+      "pattern": "projects.piyushgambhir.com/pdf-everything/console*",
+      "zone_name": "piyushgambhir.com"
+    }
+  ]
+}

@@ -11,6 +11,7 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+  workerd: true
   # Denied: analytics/telemetry and browser-mocking postinstalls we don't need.
   '@scarf/scarf': false
   msw: false

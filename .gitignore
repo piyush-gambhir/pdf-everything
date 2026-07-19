@@ -12,3 +12,5 @@ coverage
 /storage/
 apps/api/storage/
 *.tsbuildinfo
+out
+.wrangler

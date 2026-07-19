@@ -12,8 +12,10 @@ import { cn } from '@/lib/utils';
 /** Resolve the current route to a page title plus its category. */
 function useRouteLabel() {
   const pathname = usePathname();
-  // Routes live under /console; strip that prefix to get the tool id.
-  const id = pathname.replace(/^\/console\/?/, '') || null;
+  // usePathname() is already basePath-relative, so the tool id is just the
+  // path segment. Strip BOTH slashes — `trailingSlash: true` means the path is
+  // "/merge/", and leaving the trailing slash breaks the lookup.
+  const id = pathname.replace(/^\/+|\/+$/g, '') || null;
   const tool = id ? TOOLS.find((t) => t.id === id) : undefined;
 
   if (!tool) {
