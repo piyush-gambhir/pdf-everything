@@ -104,18 +104,17 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
   const Icon = tool.Icon;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
-      <div className="flex items-start gap-4">
-        <div className="grid size-12 place-items-center rounded-xl bg-primary text-primary-foreground">
-          <Icon className="size-6" />
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 pt-2 pb-14">
+      {/* The page title lives in the app header now; this keeps the icon and
+          the descriptive line without repeating the tool name. */}
+      <div className="flex items-center gap-3">
+        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
+          <Icon className="size-4.5" />
         </div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{tool.title}</h1>
-          <p className="text-sm text-muted-foreground">{tool.description}</p>
-        </div>
+        <p className="type-body text-muted-foreground">{tool.description}</p>
       </div>
 
-      <Card>
+      <Card className="bg-surface-2">
         <CardContent className="space-y-6 pt-6">
           {!result && (
             <>
@@ -208,7 +207,7 @@ function ResultView({
           </div>
           <h3 className="mt-2 text-lg font-medium">{result.files.length} files ready</h3>
         </div>
-        <ul className="divide-y rounded-xl border bg-card">
+        <ul className="divide-y divide-background/60 overflow-hidden rounded-xl bg-surface-3">
           {result.files.map((f) => (
             <li key={f.id} className="flex items-center gap-3 px-3 py-2">
               <div className="min-w-0 flex-1">
@@ -263,7 +262,7 @@ function ResultView({
             </Button>
           </div>
         </div>
-        <pre className="max-h-96 overflow-auto rounded-lg border bg-muted/30 p-3 font-mono text-xs whitespace-pre-wrap">
+        <pre className="max-h-96 overflow-auto rounded-lg bg-surface-3 p-3 font-mono text-xs whitespace-pre-wrap">
           {result.text || '(no text extracted)'}
         </pre>
       </div>
@@ -295,7 +294,7 @@ function ResultView({
           </Button>
         </div>
       </div>
-      <pre className="max-h-96 overflow-auto rounded-lg border bg-muted/30 p-3 font-mono text-xs">
+      <pre className="max-h-96 overflow-auto rounded-lg bg-surface-3 p-3 font-mono text-xs">
         {json}
       </pre>
     </div>

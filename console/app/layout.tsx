@@ -4,6 +4,7 @@ import { Geist, Geist_Mono, Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { SiteSidebar } from '@/components/site-sidebar';
+import { SiteHeader } from '@/components/site-header';
 import { Toaster } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 
@@ -24,9 +25,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     >
       <body>
         <ThemeProvider>
-          <div className="flex min-h-svh">
+          {/* Fixed-height shell. The shell itself never scrolls — only the
+              content pane does — which is what keeps the sidebar pinned.
+              (A growing `min-h-*` shell scrolls the whole document and drags
+              the sidebar out of view.) */}
+          <div className="flex h-svh overflow-hidden">
             <SiteSidebar />
-            <main className="flex-1 overflow-y-auto">{children}</main>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <SiteHeader />
+              <main className="scroll-subtle flex-1 overflow-y-auto">{children}</main>
+            </div>
           </div>
           <Toaster richColors position="top-right" />
         </ThemeProvider>

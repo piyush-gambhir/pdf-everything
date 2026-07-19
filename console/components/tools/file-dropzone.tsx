@@ -75,7 +75,7 @@ export function FileDropzone({
           'flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 text-center transition-colors',
           isDragging
             ? 'border-primary bg-primary/5'
-            : 'border-border bg-card hover:border-foreground/30 hover:bg-muted/30',
+            : 'border-foreground/12 bg-surface-2 hover:border-foreground/25 hover:bg-surface-3',
         )}
       >
         <FilePlus2 className="mb-3 size-8 text-muted-foreground" />
@@ -96,7 +96,7 @@ export function FileDropzone({
       </div>
 
       {files.length > 0 && (
-        <ul className="divide-y rounded-xl border bg-card">
+        <ul className="divide-y divide-background/60 overflow-hidden rounded-xl bg-surface-3">
           {files.map((f, i) => (
             <li key={`${f.name}-${i}`} className="flex items-center gap-3 px-3 py-2">
               {reorderable && files.length > 1 && (

@@ -17,26 +17,34 @@ export function SiteSidebar() {
   }
 
   return (
-    <aside className="flex h-svh w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
-      <Link
-        href="/"
-        className="flex items-center gap-2 px-4 py-4 text-base font-semibold tracking-tight"
-      >
-        <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
-          <FileText className="size-4" />
-        </span>
-        pdf-everything
-      </Link>
+    // h-full (not h-svh) so the sidebar fills the fixed-height shell exactly.
+    // Separated from the content pane by surface elevation, not a border.
+    <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
+      <div className="flex h-14 shrink-0 items-center px-4">
+        <Link
+          href="/"
+          className={cn(
+            'flex items-center gap-2 rounded-lg type-section',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+          )}
+        >
+          <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
+            <FileText className="size-4" />
+          </span>
+          pdf-everything
+        </Link>
+      </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
+      {/* Only this region scrolls, and its scrollbar is never painted. */}
+      <nav className="scroll-none min-h-0 flex-1 overflow-y-auto px-3 pb-2">
         {[...grouped.entries()].map(([cat, tools]) => {
           const meta = CATEGORY_META[cat as keyof typeof CATEGORY_META];
           return (
-            <div key={cat} className="mb-4">
-              <p className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <div key={cat} className="mb-5">
+              <p className="type-eyebrow px-2 pb-1.5 text-muted-foreground">
                 {meta?.label ?? cat}
               </p>
-              <ul>
+              <ul className="space-y-0.5">
                 {tools.map((t) => {
                   const href = `/${t.id}`;
                   const active = pathname === href;
@@ -45,15 +53,23 @@ export function SiteSidebar() {
                     <li key={t.id}>
                       <Link
                         href={href}
+                        aria-current={active ? 'page' : undefined}
                         className={cn(
-                          'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors',
+                          'flex items-center gap-2.5 rounded-lg px-2 py-1.5 type-body',
+                          'transition-colors',
+                          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                           active
-                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                            : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
+                            ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
+                            : 'text-muted-foreground hover:bg-sidebar-accent/55 hover:text-foreground',
                         )}
                       >
-                        <Icon className="size-4 text-muted-foreground" />
-                        {t.title}
+                        <Icon
+                          className={cn(
+                            'size-4 shrink-0',
+                            active ? 'text-foreground' : 'text-muted-foreground',
+                          )}
+                        />
+                        <span className="truncate">{t.title}</span>
                       </Link>
                     </li>
                   );
@@ -64,8 +80,11 @@ export function SiteSidebar() {
         })}
       </nav>
 
-      <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-        Press <kbd className="rounded bg-muted px-1 py-0.5 text-[10px]">d</kbd> for dark mode
+      {/* Pinned: sits outside the scroll region so it never clips. */}
+      <div className="shrink-0 px-5 py-3 type-caption text-muted-foreground">
+        Press{' '}
+        <kbd className="rounded bg-surface-3 px-1.5 py-0.5 font-mono text-[10px]">d</kbd> for
+        dark mode
       </div>
     </aside>
   );

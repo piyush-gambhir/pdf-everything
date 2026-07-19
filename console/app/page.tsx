@@ -18,41 +18,39 @@ export default function HomePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-10">
-      <div className="mb-10">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          Every PDF tool you need.
-        </h1>
-        <p className="mt-2 max-w-xl text-muted-foreground">
-          Free and open-source. Same REST API powers the UI and external clients —
-          see <Link className="underline" href="http://localhost:3001/api/docs">/api/docs</Link>.
-        </p>
-      </div>
-
+    <div className="mx-auto w-full max-w-5xl px-6 pt-2 pb-14">
       {[...grouped.entries()].map(([cat, tools]) => {
         const meta = CATEGORY_META[cat as keyof typeof CATEGORY_META];
         if (!meta) return null;
         return (
           <section key={cat} className="mb-10">
-            <div className="mb-4">
-              <h2 className="text-lg font-medium">{meta.label}</h2>
-              <p className="text-sm text-muted-foreground">{meta.description}</p>
+            <div className="mb-3.5">
+              <h2 className="type-section">{meta.label}</h2>
+              <p className="type-caption text-muted-foreground">{meta.description}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {tools.map((t) => {
                 const Icon = t.Icon;
                 return (
-                  <Link key={t.id} href={`/${t.id}`} className="group">
-                    <Card className="h-full transition-colors group-hover:border-foreground/30 group-hover:bg-muted/30">
+                  <Link
+                    key={t.id}
+                    href={`/${t.id}`}
+                    className="group rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    {/* Borderless: the card reads as a raised surface, and lifts
+                        one more step on hover instead of gaining an outline. */}
+                    <Card className="h-full bg-surface-2 transition-colors group-hover:bg-surface-3">
                       <CardHeader>
                         <div className="mb-2 flex items-center gap-2">
                           <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
                             <Icon className="size-4" />
                           </span>
-                          <CardTitle className="text-base">{t.title}</CardTitle>
-                          <ArrowRight className="ml-auto size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                          <CardTitle className="type-body font-semibold">{t.title}</CardTitle>
+                          <ArrowRight className="ml-auto size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                         </div>
-                        <CardDescription className="text-xs">{t.description}</CardDescription>
+                        <CardDescription className="type-caption">
+                          {t.description}
+                        </CardDescription>
                       </CardHeader>
                     </Card>
                   </Link>
