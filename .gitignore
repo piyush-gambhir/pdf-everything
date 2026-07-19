@@ -8,5 +8,7 @@ coverage
 .env
 .env.local
 .env.*.local
-storage/
+# runtime file storage (anchored so it never ignores src/**/storage source dirs)
+/storage/
+apps/api/storage/
 *.tsbuildinfo
