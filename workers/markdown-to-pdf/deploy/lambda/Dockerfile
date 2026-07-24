@@ -18,8 +18,8 @@
 
 FROM node:22-alpine AS build
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
-COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && corepack prepare pnpm@11.15.0 --activate
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
 COPY core ./core
@@ -28,8 +28,8 @@ RUN pnpm run build
 
 FROM node:22-alpine AS prod-deps
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
-COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && corepack prepare pnpm@11.15.0 --activate
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
 FROM node:22-alpine AS runner
