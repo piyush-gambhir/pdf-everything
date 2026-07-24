@@ -36,19 +36,21 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 # Lambda Web Adapter (multi-arch image — matches the build --platform).
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.1 /lambda-adapter /opt/extensions/lambda-adapter
 
+# The server and adapter share port 8080. Lambda's filesystem is read-only
+# outside /tmp, so Chromium writes its home and cache data there.
 ENV NODE_ENV=production \
-    # Server + adapter must agree on the port.
     PORT=8080 \
     AWS_LWA_PORT=8080 \
-    # Adapter waits for this to return 200 before serving traffic.
-    READINESS_CHECK_PATH=/health \
+    AWS_LWA_READINESS_CHECK_PATH=/health \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    # Lambda's filesystem is read-only except /tmp; point Chromium's writes there.
     HOME=/tmp \
     XDG_CONFIG_HOME=/tmp \
     XDG_CACHE_HOME=/tmp
+LABEL org.opencontainers.image.source="https://github.com/piyush-gambhir/pdf-everything" \
+      org.opencontainers.image.description="AWS Lambda image for the Markdown to PDF rendering service" \
+      org.opencontainers.image.licenses="MIT"
 
 RUN apk add --no-cache \
     chromium \

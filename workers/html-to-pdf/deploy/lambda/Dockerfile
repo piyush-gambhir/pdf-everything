@@ -18,11 +18,20 @@ RUN pnpm install --prod --frozen-lockfile
 
 FROM node:22-alpine AS runner
 WORKDIR /app
+
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.1 \
+  /lambda-adapter /opt/extensions/lambda-adapter
+
 ENV NODE_ENV=production \
-    PORT=8011 \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PORT=8080 \
+    AWS_LWA_PORT=8080 \
+    AWS_LWA_READINESS_CHECK_PATH=/health \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    HOME=/tmp \
+    XDG_CONFIG_HOME=/tmp \
+    XDG_CACHE_HOME=/tmp
 LABEL org.opencontainers.image.source="https://github.com/piyush-gambhir/pdf-everything" \
-      org.opencontainers.image.description="Standalone Markdown to PDF rendering service" \
+      org.opencontainers.image.description="AWS Lambda image for the HTML to PDF rendering service" \
       org.opencontainers.image.licenses="MIT"
 
 RUN apk add --no-cache \
@@ -31,15 +40,9 @@ RUN apk add --no-cache \
     freetype \
     harfbuzz \
     ca-certificates \
-    ttf-freefont \
-  && addgroup -g 1001 nodejs \
-  && adduser -u 1001 -G nodejs -D nodejs
+    ttf-freefont
 
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 
-USER nodejs
-EXPOSE 8011
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -q -O - "http://127.0.0.1:${PORT}/health" >/dev/null || exit 1
 CMD ["node", "dist/deploy/docker/index.js"]

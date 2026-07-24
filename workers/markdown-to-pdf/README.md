@@ -11,6 +11,12 @@ docker build -f deploy/docker/Dockerfile -t markdown-to-pdf .
 docker run --rm -p 8011:8011 markdown-to-pdf
 ```
 
+Published standard image:
+
+```bash
+docker pull ghcr.io/piyush-gambhir/pdf-everything-markdown-to-pdf:latest
+```
+
 ### Local
 
 Requires Node.js 22+ and a Chromium/Chrome binary (`PUPPETEER_EXECUTABLE_PATH` or one of `/usr/bin/chromium`, `/usr/bin/chromium-browser`, `/usr/bin/google-chrome-stable`).
@@ -24,12 +30,12 @@ pnpm run build && pnpm start
 
 ## HTTP API
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/health` | Liveness probe |
-| GET | `/ready` | Readiness probe (verifies Chromium is resolvable) |
-| GET | `/v1/templates` | List built-in template names |
-| POST | `/v1/render` | Render Markdown to PDF |
+| Method | Path            | Description                                       |
+| ------ | --------------- | ------------------------------------------------- |
+| GET    | `/health`       | Liveness probe                                    |
+| GET    | `/ready`        | Readiness probe (verifies Chromium is resolvable) |
+| GET    | `/v1/templates` | List built-in template names                      |
+| POST   | `/v1/render`    | Render Markdown to PDF                            |
 
 ### `POST /v1/render`
 
@@ -66,12 +72,17 @@ The same HTTP server runs on Lambda as a container image, fronted by the
 [AWS Lambda Web Adapter](https://github.com/awslabs/aws-lambda-web-adapter) — no
 code changes, exposed via a Lambda Function URL.
 
+The release workflow publishes
+`ghcr.io/piyush-gambhir/pdf-everything-markdown-to-pdf-lambda`. AWS Lambda
+requires copying it to an ECR repository in the same region as the function.
+
 ```bash
 cp .env.deploy.example .env.deploy.lambda   # fill in the AWS Lambda block
 bash scripts/deploy-lambda.sh               # build → ECR → create/update function + URL
 ```
 
 Notes:
+
 - Headless Chromium needs headroom: use **≥1536 MB memory** (default 2048) and a
   **≥30 s timeout** (default 60). Cold starts run ~3–6 s.
 - Build architecture must match the function (`ARCHITECTURE=arm64` by default).
@@ -86,11 +97,11 @@ Notes:
 
 ## Configuration
 
-| Env | Default | Description |
-|---|---|---|
-| `PORT` | `8011` | HTTP listen port |
-| `API_TOKEN` | _(unset)_ | Optional bearer token required on `/v1/render` |
-| `PUPPETEER_EXECUTABLE_PATH` | _(auto)_ | Path to Chromium/Chrome binary |
+| Env                         | Default   | Description                                    |
+| --------------------------- | --------- | ---------------------------------------------- |
+| `PORT`                      | `8011`    | HTTP listen port                               |
+| `API_TOKEN`                 | _(unset)_ | Optional bearer token required on `/v1/render` |
+| `PUPPETEER_EXECUTABLE_PATH` | _(auto)_  | Path to Chromium/Chrome binary                 |
 
 ## Library use
 

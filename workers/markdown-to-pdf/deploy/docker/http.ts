@@ -1,9 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import {
-  renderMarkdownToPdf,
-  resolveChromiumPath,
-  type RenderPdfOptions,
-} from '../../core/pdf.js';
+import { renderMarkdownToPdf, resolveChromiumPath, type RenderPdfOptions } from '../../core/pdf.js';
 import { TEMPLATE_NAMES, isTemplateName } from '../../core/templates/index.js';
 
 function json(res: ServerResponse, status: number, body: unknown) {

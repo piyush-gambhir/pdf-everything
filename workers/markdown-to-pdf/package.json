@@ -5,6 +5,7 @@
   "license": "MIT",
   "description": "Standalone Markdown → PDF microservice powered by headless Chromium.",
   "type": "module",
+  "packageManager": "pnpm@10.30.3",
   "engines": {
     "node": ">=22"
   },

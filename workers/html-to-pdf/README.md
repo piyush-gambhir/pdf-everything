@@ -4,13 +4,14 @@ Standalone HTTP microservice: **HTML in → PDF out** via headless Chromium. Sen
 
 ## Layout
 
-| Path | Purpose |
-|------|---------|
-| `core/pdf.ts` | Chromium resolution + `renderHtmlToPdf()` |
-| `deploy/docker/http.ts` | HTTP routes |
-| `deploy/docker/index.ts` | Process entry |
-| `deploy/docker/Dockerfile` | Production image |
-| `tests/typescript/` | Vitest tests |
+| Path                       | Purpose                                   |
+| -------------------------- | ----------------------------------------- |
+| `core/pdf.ts`              | Chromium resolution + `renderHtmlToPdf()` |
+| `deploy/docker/http.ts`    | HTTP routes                               |
+| `deploy/docker/index.ts`   | Process entry                             |
+| `deploy/docker/Dockerfile` | Standard container image                  |
+| `deploy/lambda/Dockerfile` | AWS Lambda container image                |
+| `tests/typescript/`        | Vitest tests                              |
 
 ## API
 
@@ -36,12 +37,17 @@ docker build -f deploy/docker/Dockerfile -t html-to-pdf:local .
 docker run --rm -p 8010:8010 html-to-pdf:local
 ```
 
-## Docker Hub
+## Published images
 
 ```bash
-docker pull piyushgambhir/html-to-pdf:latest
-docker run --rm -p 8010:8010 piyushgambhir/html-to-pdf:latest
+docker pull ghcr.io/piyush-gambhir/pdf-everything-html-to-pdf:latest
+docker run --rm -p 8010:8010 \
+  ghcr.io/piyush-gambhir/pdf-everything-html-to-pdf:latest
 ```
+
+The Lambda-compatible variant is
+`ghcr.io/piyush-gambhir/pdf-everything-html-to-pdf-lambda`. AWS Lambda requires
+copying it to an ECR repository in the same region as the function.
 
 ## License
 

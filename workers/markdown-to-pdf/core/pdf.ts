@@ -67,9 +67,7 @@ export async function renderMarkdownToPdf(
 
   const templateName = options.template ?? DEFAULT_OPTS.template;
   if (!isTemplateName(templateName)) {
-    throw new Error(
-      `Unknown template "${templateName}". Valid templates: github, academic, rca.`,
-    );
+    throw new Error(`Unknown template "${templateName}". Valid templates: github, academic, rca.`);
   }
 
   const o = {

@@ -13,6 +13,7 @@ A unified PDF console + REST API. ~60 PDF features (merge, split, compress, conv
 
 ```
 console/              Next.js app (the PDF tool console)
+web/                  Marketing site + Fumadocs documentation
 backend/              NestJS API
 ├── src/pdf-core/     Pure PDF feature implementations
 └── tests/            pdf-core test suite
@@ -22,12 +23,10 @@ workers/              Standalone rendering workers (one folder per worker)
 └── markdown-to-pdf/  Markdown -> PDF (headless Chrome)
 ```
 
-> `web/` is reserved for the marketing/landing site (not yet built).
->
-> **Workers are co-located as-is, not yet integrated.** They sit outside the pnpm
-> workspace and Turbo pipeline and keep their own `package.json` / lockfile /
-> deploy targets. See [`workers/README.md`](workers/README.md) for status and the
-> steps needed to restore their Docker Hub publishing.
+> **Rendering workers are independently deployable services.** They keep their
+> own dependencies, tests, standard Docker image and Lambda image. Root-level
+> GitHub workflows verify them and publish public images to GHCR. They are not
+> yet called by the NestJS API or console. See [`workers/README.md`](workers/README.md).
 
 ## Develop
 

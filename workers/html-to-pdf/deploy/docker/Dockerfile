@@ -21,6 +21,9 @@ WORKDIR /app
 ENV NODE_ENV=production \
     PORT=8010 \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+LABEL org.opencontainers.image.source="https://github.com/piyush-gambhir/pdf-everything" \
+      org.opencontainers.image.description="Standalone HTML to PDF rendering service" \
+      org.opencontainers.image.licenses="MIT"
 
 RUN apk add --no-cache \
     chromium \
@@ -37,4 +40,6 @@ COPY --from=build /app/dist ./dist
 
 USER nodejs
 EXPOSE 8010
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -q -O - "http://127.0.0.1:${PORT}/health" >/dev/null || exit 1
 CMD ["node", "dist/deploy/docker/index.js"]
