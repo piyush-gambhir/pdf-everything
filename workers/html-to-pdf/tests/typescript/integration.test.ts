@@ -42,7 +42,7 @@ describe.skipIf(!chromium)('integration: real Chromium PDF render', () => {
     // Reasonable size for a simple page
     expect(buf.length).toBeGreaterThan(100);
     expect(buf.length).toBeLessThan(500_000);
-  });
+  }, 30_000);
 
   it('renders HTML with inline CSS', async () => {
     const res = await fetch(`${origin}/v1/render`, {
@@ -57,5 +57,5 @@ describe.skipIf(!chromium)('integration: real Chromium PDF render', () => {
     expect(res.status).toBe(200);
     const buf = Buffer.from(await res.arrayBuffer());
     expect(buf.subarray(0, 5).toString('ascii')).toBe('%PDF-');
-  });
+  }, 30_000);
 });
