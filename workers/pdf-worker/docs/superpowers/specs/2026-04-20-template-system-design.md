@@ -53,10 +53,10 @@ core/
 
 ## API
 
-No breaking changes. `template` is added to the existing `options` object:
+`template` is included in the Markdown endpoint's existing `options` object:
 
 ```json
-POST /v1/render
+POST /v1/render/markdown
 {
   "markdown": "# RCA: Payment Gateway...\n\n...",
   "options": {

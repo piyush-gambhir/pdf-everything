@@ -41,14 +41,13 @@ docker pull ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda:latest
 
 ## HTTP API
 
-| Method | Path                  | Description                                        |
-| ------ | --------------------- | -------------------------------------------------- |
-| GET    | `/health`             | Liveness and supported-operation list              |
-| GET    | `/ready`              | Readiness; verifies Chromium is available          |
-| GET    | `/v1/templates`       | Markdown template names                            |
-| POST   | `/v1/render/html`     | Render HTML to PDF                                 |
-| POST   | `/v1/render/markdown` | Render Markdown to PDF                             |
-| POST   | `/v1/render`          | Compatibility route; dispatches by the input field |
+| Method | Path                  | Description                               |
+| ------ | --------------------- | ----------------------------------------- |
+| GET    | `/health`             | Liveness and supported-operation list     |
+| GET    | `/ready`              | Readiness; verifies Chromium is available |
+| GET    | `/v1/templates`       | Markdown template names                   |
+| POST   | `/v1/render/html`     | Render HTML to PDF                        |
+| POST   | `/v1/render/markdown` | Render Markdown to PDF                    |
 
 ### HTML
 
@@ -73,9 +72,8 @@ curl --fail http://localhost:8010/v1/render/markdown \
 
 Markdown options add `template` (`github`, `academic`, or `rca`) and `title`.
 
-For migration compatibility, `/v1/render` accepts either the HTML body or the
-Markdown body above. Supplying both fields or using the wrong field on an
-explicit route returns `400`.
+Requests must use the operation-specific endpoint. Supplying both fields or
+using the wrong field returns `400`.
 
 If `API_TOKEN` is set, every render route requires
 `Authorization: Bearer <token>`. Health, readiness and template discovery stay

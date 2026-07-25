@@ -96,22 +96,13 @@ describe('HTTP server without authentication', () => {
     expect(Buffer.from(await res.arrayBuffer()).toString()).toContain('markdown');
   });
 
-  it('keeps the legacy route for HTML requests', async () => {
+  it('does not expose a generic render route', async () => {
     const res = await request(origin, '/v1/render', {
       method: 'POST',
-      body: JSON.stringify({ html: '<p>Legacy</p>' }),
+      body: JSON.stringify({ html: '<p>Hello</p>' }),
       headers: jsonHeaders,
     });
-    expect(res.status).toBe(200);
-  });
-
-  it('keeps the legacy route for Markdown requests', async () => {
-    const res = await request(origin, '/v1/render', {
-      method: 'POST',
-      body: JSON.stringify({ markdown: 'Legacy' }),
-      headers: jsonHeaders,
-    });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(404);
   });
 
   it('rejects mismatched explicit route input', async () => {
@@ -124,7 +115,7 @@ describe('HTTP server without authentication', () => {
   });
 
   it('rejects requests containing both input fields', async () => {
-    const res = await request(origin, '/v1/render', {
+    const res = await request(origin, '/v1/render/html', {
       method: 'POST',
       body: JSON.stringify({ html: '<p>Both</p>', markdown: 'Both' }),
       headers: jsonHeaders,
@@ -152,7 +143,7 @@ describe('HTTP server without authentication', () => {
   });
 
   it('rejects invalid JSON', async () => {
-    const res = await request(origin, '/v1/render', {
+    const res = await request(origin, '/v1/render/html', {
       method: 'POST',
       body: 'not-json',
       headers: jsonHeaders,
@@ -161,7 +152,7 @@ describe('HTTP server without authentication', () => {
   });
 
   it('rejects a non-object JSON body', async () => {
-    const res = await request(origin, '/v1/render', {
+    const res = await request(origin, '/v1/render/html', {
       method: 'POST',
       body: 'null',
       headers: jsonHeaders,

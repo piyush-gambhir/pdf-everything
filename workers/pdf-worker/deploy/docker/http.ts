@@ -116,8 +116,7 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
     }
 
     const isRenderRoute =
-      method === 'POST' &&
-      ['/v1/render', '/v1/render/html', '/v1/render/markdown'].includes(pathname);
+      method === 'POST' && (pathname === '/v1/render/html' || pathname === '/v1/render/markdown');
     if (!isRenderRoute) {
       json(res, 404, { error: 'not_found' });
       return;
@@ -162,7 +161,7 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
     const hasHtml = 'html' in body;
     const hasMarkdown = 'markdown' in body;
 
-    if ((wantsHtml && hasMarkdown) || (wantsMarkdown && hasHtml) || (hasHtml && hasMarkdown)) {
+    if (hasHtml && hasMarkdown) {
       json(res, 400, {
         error: 'bad_request',
         message: 'Use exactly one input field: "html" or "markdown".',
@@ -170,8 +169,8 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
       return;
     }
 
-    if ((wantsHtml || (!wantsMarkdown && hasHtml)) && hasHtml) {
-      if (typeof body.html !== 'string' || body.html.length === 0) {
+    if (wantsHtml) {
+      if (hasMarkdown || typeof body.html !== 'string' || body.html.length === 0) {
         json(res, 400, {
           error: 'bad_request',
           message: 'Field "html" is required and must be a non-empty string.',
@@ -183,8 +182,8 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
       return;
     }
 
-    if ((wantsMarkdown || (!wantsHtml && hasMarkdown)) && hasMarkdown) {
-      if (typeof body.markdown !== 'string' || body.markdown.length === 0) {
+    if (wantsMarkdown) {
+      if (hasHtml || typeof body.markdown !== 'string' || body.markdown.length === 0) {
         json(res, 400, {
           error: 'bad_request',
           message: 'Field "markdown" is required and must be a non-empty string.',
@@ -207,11 +206,6 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
       );
       return;
     }
-
-    json(res, 400, {
-      error: 'bad_request',
-      message: `Field "${wantsMarkdown ? 'markdown' : wantsHtml ? 'html' : 'html" or "markdown'}" is required and must be a non-empty string.`,
-    });
   });
 
   return new Promise<Server>((resolve, reject) => {
