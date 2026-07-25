@@ -17,18 +17,8 @@ concurrency:
 
 jobs:
   verify:
-    name: Verify ${{ matrix.worker }}
+    name: Verify pdf-worker
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - worker: html-to-pdf
-            port: 8010
-            payload: '{"html":"<h1>Container smoke test</h1>"}'
-          - worker: markdown-to-pdf
-            port: 8011
-            payload: '{"markdown":"# Container smoke test"}'
 
     steps:
       - uses: actions/checkout@v7
@@ -39,47 +29,48 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-          cache-dependency-path: workers/${{ matrix.worker }}/pnpm-lock.yaml
+          cache-dependency-path: workers/pdf-worker/pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: workers/${{ matrix.worker }}
+        working-directory: workers/pdf-worker
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        working-directory: workers/${{ matrix.worker }}
+        working-directory: workers/pdf-worker
         run: pnpm build
 
       - name: Check formatting
-        working-directory: workers/${{ matrix.worker }}
+        working-directory: workers/pdf-worker
         run: pnpm format:check
 
       - name: Run tests
-        working-directory: workers/${{ matrix.worker }}
+        working-directory: workers/pdf-worker
         run: pnpm test
 
       - name: Build standard image
         run: |
           docker build \
-            --file "workers/${{ matrix.worker }}/deploy/docker/Dockerfile" \
-            --tag "${{ matrix.worker }}:ci" \
-            "workers/${{ matrix.worker }}"
+            --file workers/pdf-worker/deploy/docker/Dockerfile \
+            --tag pdf-worker:ci \
+            workers/pdf-worker
 
-      - name: Smoke-test standard image
-        env:
-          WORKER: ${{ matrix.worker }}
-          PORT: ${{ matrix.port }}
-          PAYLOAD: ${{ matrix.payload }}
+      - name: Smoke-test both operations
         run: |
-          docker run --detach --name "${WORKER}-ci" \
-            --publish "127.0.0.1:${PORT}:${PORT}" \
-            "${WORKER}:ci"
+          cleanup() {
+            docker rm --force pdf-worker-ci >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach --name pdf-worker-ci \
+            --publish 127.0.0.1:8010:8010 \
+            pdf-worker:ci
 
           for attempt in $(seq 1 30); do
-            if curl --fail --silent "http://127.0.0.1:${PORT}/ready" >/dev/null; then
+            if curl --fail --silent http://127.0.0.1:8010/ready >/dev/null; then
               break
             fi
             if [ "$attempt" -eq 30 ]; then
-              docker logs "${WORKER}-ci"
+              docker logs pdf-worker-ci
               exit 1
             fi
             sleep 1
@@ -88,16 +79,23 @@ jobs:
           curl --fail --silent \
             --request POST \
             --header "content-type: application/json" \
-            --data "$PAYLOAD" \
-            "http://127.0.0.1:${PORT}/v1/render" \
-            --output /tmp/worker-smoke.pdf
+            --data '{"html":"<h1>HTML container smoke test</h1>"}' \
+            http://127.0.0.1:8010/v1/render/html \
+            --output /tmp/html-smoke.pdf
 
-          test "$(head -c 5 /tmp/worker-smoke.pdf)" = "%PDF-"
-          docker rm --force "${WORKER}-ci"
+          curl --fail --silent \
+            --request POST \
+            --header "content-type: application/json" \
+            --data '{"markdown":"# Markdown container smoke test"}' \
+            http://127.0.0.1:8010/v1/render/markdown \
+            --output /tmp/markdown-smoke.pdf
+
+          test "$(head -c 5 /tmp/html-smoke.pdf)" = "%PDF-"
+          test "$(head -c 5 /tmp/markdown-smoke.pdf)" = "%PDF-"
 
       - name: Build Lambda image
         run: |
           docker build \
-            --file "workers/${{ matrix.worker }}/deploy/lambda/Dockerfile" \
-            --tag "${{ matrix.worker }}-lambda:ci" \
-            "workers/${{ matrix.worker }}"
+            --file workers/pdf-worker/deploy/lambda/Dockerfile \
+            --tag pdf-worker-lambda:ci \
+            workers/pdf-worker

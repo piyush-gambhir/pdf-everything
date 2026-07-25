@@ -23,21 +23,18 @@ concurrency:
   group: worker-images-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/pdf-everything-pdf-worker
+
 jobs:
   verify:
-    name: Verify worker images
+    name: Verify pdf-worker
     uses: ./.github/workflows/workers-ci.yml
 
   publish-standard:
-    name: Publish ${{ matrix.worker }}
+    name: Publish pdf-worker
     needs: verify
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        worker:
-          - html-to-pdf
-          - markdown-to-pdf
 
     steps:
       - uses: actions/checkout@v7
@@ -57,7 +54,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/pdf-everything-${{ matrix.worker }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=sha,prefix=sha-,format=long
             type=raw,value=edge,enable=${{ github.ref_type == 'branch' && github.ref_name != 'main' }}
@@ -68,32 +65,26 @@ jobs:
         id: publish
         uses: docker/build-push-action@v7
         with:
-          context: workers/${{ matrix.worker }}
-          file: workers/${{ matrix.worker }}/deploy/docker/Dockerfile
+          context: workers/pdf-worker
+          file: workers/pdf-worker/deploy/docker/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.worker }}-standard
-          cache-to: type=gha,mode=max,scope=${{ matrix.worker }}-standard
+          cache-from: type=gha,scope=pdf-worker-standard
+          cache-to: type=gha,mode=max,scope=pdf-worker-standard
 
       - name: Attest image
         uses: actions/attest@v4
         with:
-          subject-name: ghcr.io/${{ github.repository_owner }}/pdf-everything-${{ matrix.worker }}
+          subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.publish.outputs.digest }}
           push-to-registry: true
 
   publish-lambda:
-    name: Publish ${{ matrix.worker }} Lambda
+    name: Publish pdf-worker Lambda
     needs: verify
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        worker:
-          - html-to-pdf
-          - markdown-to-pdf
 
     steps:
       - uses: actions/checkout@v7
@@ -111,7 +102,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/pdf-everything-${{ matrix.worker }}-lambda
+          images: ${{ env.IMAGE_NAME }}-lambda
           tags: |
             type=sha,prefix=sha-,format=long
             type=raw,value=edge,enable=${{ github.ref_type == 'branch' && github.ref_name != 'main' }}
@@ -122,19 +113,19 @@ jobs:
         id: publish
         uses: docker/build-push-action@v7
         with:
-          context: workers/${{ matrix.worker }}
-          file: workers/${{ matrix.worker }}/deploy/lambda/Dockerfile
+          context: workers/pdf-worker
+          file: workers/pdf-worker/deploy/lambda/Dockerfile
           platforms: linux/amd64
           provenance: false
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.worker }}-lambda
-          cache-to: type=gha,mode=max,scope=${{ matrix.worker }}-lambda
+          cache-from: type=gha,scope=pdf-worker-lambda
+          cache-to: type=gha,mode=max,scope=pdf-worker-lambda
 
       - name: Attest image
         uses: actions/attest@v4
         with:
-          subject-name: ghcr.io/${{ github.repository_owner }}/pdf-everything-${{ matrix.worker }}-lambda
+          subject-name: ${{ env.IMAGE_NAME }}-lambda
           subject-digest: ${{ steps.publish.outputs.digest }}
           push-to-registry: true

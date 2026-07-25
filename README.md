@@ -18,15 +18,14 @@ backend/              NestJS API
 ├── src/pdf-core/     Pure PDF feature implementations
 └── tests/            pdf-core test suite
 types/                Zod schemas shared by console + backend
-workers/              Standalone rendering workers (one folder per worker)
-├── html-to-pdf/      HTML -> PDF (headless Chrome)
-└── markdown-to-pdf/  Markdown -> PDF (headless Chrome)
+workers/
+└── pdf-worker/       HTML/Markdown -> PDF (shared headless Chrome runtime)
 ```
 
-> **Rendering workers are independently deployable services.** They keep their
-> own dependencies, tests, standard Docker image and Lambda image. Root-level
-> GitHub workflows verify them and publish public images to GHCR. They are not
-> yet called by the NestJS API or console. See [`workers/README.md`](workers/README.md).
+> **`pdf-worker` is independently deployable.** It owns its dependencies,
+> tests, standard Docker image and Lambda image. It currently supports only
+> `html-to-pdf` and `markdown-to-pdf` through one shared Chromium renderer.
+> See [`workers/README.md`](workers/README.md).
 
 ## Develop
 

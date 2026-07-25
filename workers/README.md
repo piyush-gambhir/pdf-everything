@@ -1,78 +1,74 @@
 # workers/
 
-Standalone rendering workers. Each subfolder is a self-contained service with
-its own dependencies, tests and deployment images.
+Deployable runtime services that are intentionally kept outside the root pnpm
+workspace and Turbo graph.
 
-| Worker             | Does                  | Port | Standard image                                          | Lambda image                                                   |
-| ------------------ | --------------------- | ---: | ------------------------------------------------------- | -------------------------------------------------------------- |
-| `html-to-pdf/`     | HTML → PDF            | 8010 | `ghcr.io/piyush-gambhir/pdf-everything-html-to-pdf`     | `ghcr.io/piyush-gambhir/pdf-everything-html-to-pdf-lambda`     |
-| `markdown-to-pdf/` | Markdown → HTML → PDF | 8011 | `ghcr.io/piyush-gambhir/pdf-everything-markdown-to-pdf` | `ghcr.io/piyush-gambhir/pdf-everything-markdown-to-pdf-lambda` |
+## Current worker
 
-## Why a single `workers/` folder
+| Worker        | Operations                            | Port | Standard image                                     | Lambda image                                              |
+| ------------- | ------------------------------------- | ---: | -------------------------------------------------- | --------------------------------------------------------- |
+| `pdf-worker/` | `html-to-pdf`, `markdown-to-pdf` only | 8010 | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker` | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda` |
 
-One folder per worker keeps each image independently buildable while allowing
-CI, releases and security policy to be managed in one repository.
+Both operations use one Chromium installation and one HTML-to-PDF rendering
+core. Markdown is converted to templated HTML before entering that same core.
+The supported operation list is deliberately explicit; unrelated PDF
+operations should not be added merely because this worker exists.
 
 ## Independence
 
-The workers deliberately sit outside the root pnpm workspace and Turbo graph.
-Each worker owns its `package.json`, lockfile and TypeScript build, so its folder
-can be used directly as a Docker build context.
+`pdf-worker` owns its `package.json`, lockfile, tests and deployment targets.
+Its folder can be used directly as a Docker build context and deployed without
+the console or NestJS backend.
 
-They are independently deployable but are not yet integrated into the NestJS API
-or console. Call their `/v1/render` endpoints directly until the backend gains
-render-service adapters.
+It is not yet called by the backend or console. Until adapters are added, call
+the worker's HTTP API directly.
 
 ## Image targets
 
-Each worker publishes two image variants:
-
-- `deploy/docker/Dockerfile`: multi-platform `linux/amd64` + `linux/arm64`
-  image for Cloud Run, ECS, Kubernetes, Railway, Render, Fly.io and Docker hosts.
-- `deploy/lambda/Dockerfile`: single-platform `linux/amd64` image containing the
-  AWS Lambda Web Adapter. Copy this image to same-region ECR before creating a
-  Lambda function.
+- `deploy/docker/Dockerfile`: `linux/amd64` and `linux/arm64` image for Cloud
+  Run, ECS, Kubernetes, Railway, Render, Fly.io and ordinary Docker hosts.
+- `deploy/lambda/Dockerfile`: `linux/amd64` image with the AWS Lambda Web
+  Adapter. Copy it to same-region ECR before creating a Lambda function.
 
 Build locally from the repository root:
 
 ```bash
 docker build \
-  -f workers/html-to-pdf/deploy/docker/Dockerfile \
-  -t html-to-pdf:local \
-  workers/html-to-pdf
+  -f workers/pdf-worker/deploy/docker/Dockerfile \
+  -t pdf-worker:local \
+  workers/pdf-worker
 
 docker build \
-  -f workers/markdown-to-pdf/deploy/lambda/Dockerfile \
-  -t markdown-to-pdf-lambda:local \
-  workers/markdown-to-pdf
+  -f workers/pdf-worker/deploy/lambda/Dockerfile \
+  -t pdf-worker-lambda:local \
+  workers/pdf-worker
 ```
 
 ## Releases
 
 The root workflows are authoritative:
 
-- `.github/workflows/workers-ci.yml` installs, builds, tests and smoke-tests
-  both standard images, then verifies both Lambda images build.
-- `.github/workflows/publish-worker-images.yml` publishes all four GHCR images
-  with OCI metadata and build attestations.
+- `.github/workflows/workers-ci.yml` installs, builds and tests the package,
+  renders both supported input types in its standard image, and verifies the
+  Lambda image builds.
+- `.github/workflows/publish-worker-images.yml` publishes the standard and
+  Lambda images with OCI metadata and build attestations.
 
 Every publishing run creates an immutable `sha-<commit>` tag. `main` also gets
 `latest`; other branches get `edge`. A tag such as `workers-v1.0.0` publishes
 the corresponding `1.0.0` image tag.
 
+The earlier per-operation images remain as historical artifacts but are
+superseded by `pdf-worker`.
+
 ## Runtime configuration
 
-| Variable                    | Purpose                                                                      |
-| --------------------------- | ---------------------------------------------------------------------------- |
-| `PORT`                      | HTTP listen port; injected by Cloud Run and set by the images                |
-| `API_TOKEN`                 | Optional bearer token for `POST /v1/render`; required for public deployments |
-| `PUPPETEER_EXECUTABLE_PATH` | Chromium binary path; already set by the images                              |
+| Variable                    | Purpose                                                |
+| --------------------------- | ------------------------------------------------------ |
+| `PORT`                      | HTTP listen port; defaults to `8010`                   |
+| `API_TOKEN`                 | Optional bearer token required on render routes        |
+| `MAX_REQUEST_BYTES`         | Maximum JSON request size; defaults to 5 MiB           |
+| `PUPPETEER_EXECUTABLE_PATH` | Chromium binary path; already configured by the images |
 
 Keep secrets in the target platform's secret manager. Never bake them into an
 image or commit them to this repository.
-
-## Future integration
-
-Both services share the same Puppeteer rendering path. A shared render core is
-the natural next de-duplication step, while keeping Chromium outside the main
-NestJS process.
