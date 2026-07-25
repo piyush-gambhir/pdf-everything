@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resolveChromiumPath } from '../../core/html.js';
 import { createHttpServer } from '../../deploy/docker/http.js';
 
-const chromium = resolveChromiumPath();
+const chromium = process.env.RUN_BROWSER_INTEGRATION === '1' ? resolveChromiumPath() : null;
 
 function getServerOrigin(server: Server): string {
   const address = server.address();

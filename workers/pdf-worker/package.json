@@ -15,6 +15,7 @@
     "dev": "tsx watch deploy/docker/index.ts",
     "render": "tsx scripts/render.ts",
     "test": "vitest run",
+    "test:integration": "RUN_BROWSER_INTEGRATION=1 vitest run tests/typescript/integration.test.ts",
     "test:watch": "vitest",
     "format": "prettier --write \"core/**/*.ts\" \"deploy/docker/**/*.ts\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"core/**/*.ts\" \"deploy/docker/**/*.ts\" \"tests/**/*.ts\""

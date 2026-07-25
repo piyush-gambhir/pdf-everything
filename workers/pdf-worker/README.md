@@ -23,6 +23,15 @@ docker build -f deploy/docker/Dockerfile -t pdf-worker .
 docker run --rm -p 8010:8010 pdf-worker
 ```
 
+Verification is split intentionally:
+
+```bash
+corepack pnpm test              # deterministic unit and HTTP tests
+corepack pnpm test:integration  # real locally installed Chromium
+```
+
+Release CI also renders both operations inside the production container.
+
 Published images:
 
 ```bash
