@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Geist, Geist_Mono, Inter } from 'next/font/google';
+import { Geist_Mono, Inter } from 'next/font/google';
 
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
