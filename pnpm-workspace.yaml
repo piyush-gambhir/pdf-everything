@@ -4,6 +4,12 @@ packages:
   - "backend"
   - "types"
 
+# Next 16.2.11 pins this newly published transitive dependency. Exempt only
+# the reviewed version so the security patch can ship without weakening the
+# default 24-hour quarantine for later releases.
+minimumReleaseAgeExclude:
+  - baseline-browser-mapping@2.11.4
+
 # pnpm 11 build-script allowlist. Native modules must be allowed to build or the
 # backend crashes at runtime ("Could not locate the bindings file").
 allowBuilds:
