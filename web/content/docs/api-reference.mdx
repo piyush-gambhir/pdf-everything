@@ -1,0 +1,224 @@
+---
+title: API reference
+description: Public endpoints, request formats, output modes, and validated options.
+---
+
+The public API is versioned under `/api/v1`. The examples below assume:
+
+```bash
+export API_ORIGIN=https://api.example.com
+```
+
+Interactive OpenAPI documentation is available at `$API_ORIGIN/api/docs`.
+
+## Request formats
+
+### Uploaded files
+
+File-based operations accept `multipart/form-data`:
+
+- use `file` for one document;
+- use `files` for merge and images-to-PDF;
+- send `options` as a JSON-encoded string.
+
+### Stored file references
+
+Upload a file once:
+
+```bash
+curl --fail -X POST "$API_ORIGIN/api/v1/files" \
+  -F "file=@document.pdf"
+```
+
+Then call a file operation with JSON:
+
+```json
+{
+  "fileIds": ["FILE_ID"],
+  "options": {
+    "angle": 90
+  }
+}
+```
+
+Do not mix uploaded files and `fileIds` in one request.
+
+### Page ranges
+
+Page ranges are one-based strings such as `1-3,5,7-9`. Out-of-range pages are
+ignored. Reversed ranges and page zero are invalid.
+
+## Output modes
+
+Most PDF-producing endpoints support:
+
+| Mode      | Request              | Response                   |
+| --------- | -------------------- | -------------------------- |
+| Binary    | default              | `application/pdf` download |
+| Reference | append `?output=ref` | JSON `FileMeta` object     |
+
+Special cases:
+
+- split returns `{ "files": FileMeta[] }`;
+- forms extract returns `{ "fields": FormFieldInfo[] }`;
+- extract text returns `text/plain` and an `X-Page-Count` response header.
+
+Stored file routes:
+
+| Method   | Endpoint                    | Purpose                              |
+| -------- | --------------------------- | ------------------------------------ |
+| `POST`   | `/api/v1/files`             | Upload a file and receive `FileMeta` |
+| `GET`    | `/api/v1/files/:id`         | Read metadata                        |
+| `GET`    | `/api/v1/files/:id/content` | Download content                     |
+| `DELETE` | `/api/v1/files/:id`         | Delete immediately                   |
+
+## Organize
+
+| Operation     | Endpoint                         | Input   | Required options |
+| ------------- | -------------------------------- | ------- | ---------------- |
+| Merge         | `/api/v1/organize/merge`         | `files` | none             |
+| Split         | `/api/v1/organize/split`         | `file`  | `mode`           |
+| Rotate        | `/api/v1/organize/rotate`        | `file`  | `angle`          |
+| Remove pages  | `/api/v1/organize/remove-pages`  | `file`  | `pages`          |
+| Extract pages | `/api/v1/organize/extract-pages` | `file`  | `pages`          |
+| Reorder       | `/api/v1/organize/reorder`       | `file`  | `order`          |
+| Crop          | `/api/v1/organize/crop`          | `file`  | `marginPoints`   |
+
+Options:
+
+| Operation        | Shape                                                           |
+| ---------------- | --------------------------------------------------------------- |
+| Merge            | `{ outputFilename?: string }`                                   |
+| Split ranges     | `{ mode: "ranges", ranges: ["1-2", "3-5"] }`                    |
+| Split every page | `{ mode: "each" }`                                              |
+| Rotate           | `{ angle: 90 \| 180 \| 270, pages?: "1-3,5" }`                  |
+| Remove / extract | `{ pages: "1-3,5" }`                                            |
+| Reorder          | `{ order: [3, 1, 2, 4] }`                                       |
+| Crop             | `{ marginPoints: { top, right, bottom, left }, pages?: "1-3" }` |
+
+Crop margins are PDF points; 72 points equal one inch.
+
+## Edit
+
+| Operation    | Endpoint                    | Options                                             |
+| ------------ | --------------------------- | --------------------------------------------------- |
+| Watermark    | `/api/v1/edit/watermark`    | text, position, size, opacity, rotation, pages      |
+| Page numbers | `/api/v1/edit/page-numbers` | format, position, size, margin, start number, pages |
+| Metadata     | `/api/v1/edit/metadata`     | title, author, subject, keywords, producer, creator |
+
+Watermark:
+
+```json
+{
+  "text": "CONFIDENTIAL",
+  "position": "middle-center",
+  "fontSize": 60,
+  "opacity": 0.25,
+  "rotation": -45,
+  "pages": "1-3"
+}
+```
+
+`position` accepts `top-left`, `top-center`, `top-right`, `middle-left`,
+`middle-center`, `middle-right`, `bottom-left`, `bottom-center`, or
+`bottom-right`.
+
+Page numbers:
+
+```json
+{
+  "format": "page_n_of_m",
+  "position": "bottom-center",
+  "fontSize": 11,
+  "margin": 28,
+  "startNumber": 1
+}
+```
+
+`format` accepts `n`, `n_of_m`, `page_n`, or `page_n_of_m`.
+
+## Convert and page geometry
+
+| Operation         | Endpoint                            | Options                                                  |
+| ----------------- | ----------------------------------- | -------------------------------------------------------- |
+| Images to PDF     | `/api/v1/convert-to/images-to-pdf`  | `pageSize`, `orientation`, `margin`, `fit`               |
+| Extract text      | `/api/v1/convert-from/extract-text` | `preserveBlankLines`                                     |
+| Resize pages      | `/api/v1/misc/resize-pages`         | `scale`, optional `pages`                                |
+| Convert page size | `/api/v1/misc/page-size-convert`    | `targetSize`, `orientation`, `fitMode`, optional `pages` |
+
+Images to PDF:
+
+```json
+{
+  "pageSize": "a4",
+  "orientation": "auto",
+  "margin": 20,
+  "fit": "contain"
+}
+```
+
+- `pageSize`: `a4`, `a3`, `a5`, `letter`, `legal`, or `auto`
+- `orientation`: `portrait`, `landscape`, or `auto`
+- `fit`: `contain`, `cover`, or `stretch`
+
+Resize accepts a scale from `0.1` through `4`. Page-size conversion accepts
+`fitMode: "scale"` or `"box-only"`.
+
+## Forms
+
+| Operation | Endpoint                | Response              |
+| --------- | ----------------------- | --------------------- |
+| Fill      | `/api/v1/forms/fill`    | PDF or file reference |
+| Flatten   | `/api/v1/forms/flatten` | PDF or file reference |
+| Extract   | `/api/v1/forms/extract` | JSON field inventory  |
+
+Fill options:
+
+```json
+{
+  "fields": {
+    "full_name": "Ada Lovelace",
+    "accepted": true,
+    "interests": ["math", "computing"]
+  },
+  "flatten": false
+}
+```
+
+Field values can be a string, boolean, or string array. The fill response also
+sets `X-Filled-Fields` and `X-Missing-Fields`.
+
+## Browser rendering
+
+| Operation       | Endpoint                  | Body                                       |
+| --------------- | ------------------------- | ------------------------------------------ |
+| HTML to PDF     | `/api/v1/render/html`     | HTML plus PDF options                      |
+| Markdown to PDF | `/api/v1/render/markdown` | Markdown, template, title, and PDF options |
+
+Shared PDF options:
+
+| Field                 | Values                                       | Default  |
+| --------------------- | -------------------------------------------- | -------- |
+| `format`              | `A4`, `Letter`, `Legal`                      | `A4`     |
+| `printBackground`     | boolean                                      | `true`   |
+| `margin`              | CSS length strings for top/right/bottom/left | unset    |
+| `navigationTimeoutMs` | 1,000–120,000                                | `30,000` |
+
+Markdown adds `template: "github" | "academic" | "rca"` and an optional title.
+
+## Errors
+
+Failures are JSON problem documents:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Use \"1-3,5,7-9\" format"
+}
+```
+
+Treat `title` and `detail` as user-safe summaries. Do not retry validation
+errors. Retry worker-unavailable responses only with bounded exponential
+backoff.

@@ -1,0 +1,73 @@
+---
+title: Configuration
+description: Build-time and runtime environment variables for every service.
+---
+
+## Static web and docs
+
+The web app is a static export mounted at `/pdf-everything`.
+
+| Variable                     | Required | Purpose                                                                        |
+| ---------------------------- | -------- | ------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_CONSOLE_ORIGIN` | no       | Separate console origin; local development defaults to `http://localhost:3000` |
+
+In production, omit the variable when the site and console share the same
+origin and are routed by path.
+
+## Console
+
+The console is a static export mounted at `/pdf-everything/console`.
+
+| Variable                  | Required   | Default                                                    | Purpose                 |
+| ------------------------- | ---------- | ---------------------------------------------------------- | ----------------------- |
+| `NEXT_PUBLIC_API_ORIGIN`  | production | `http://localhost:3001`                                    | Public Nest API origin  |
+| `NEXT_PUBLIC_SITE_ORIGIN` | no         | local web server in development; same origin in production | Website and docs origin |
+
+These values are compiled into the static JavaScript bundle. Rebuild the
+console after changing them.
+
+## Nest API
+
+| Variable                  | Default                 | Purpose                                  |
+| ------------------------- | ----------------------- | ---------------------------------------- |
+| `API_PORT`                | `3001`                  | Public HTTP port                         |
+| `STORAGE_DIR`             | `./storage`             | Temporary local file directory           |
+| `FILE_TTL_HOURS`          | `24`                    | Stored-file lifetime                     |
+| `PDF_CORE_WORKER_URL`     | `http://127.0.0.1:8020` | Core worker origin                       |
+| `PDF_CORE_WORKER_TOKEN`   | unset                   | Bearer token sent to the core worker     |
+| `PDF_RENDER_WORKER_URL`   | `http://127.0.0.1:8010` | Chromium worker origin                   |
+| `PDF_RENDER_WORKER_TOKEN` | unset                   | Bearer token sent to the Chromium worker |
+
+The current file store is local filesystem storage. A horizontally scaled Nest
+deployment needs shared object storage or sticky routing; otherwise one replica
+cannot read a file created by another replica.
+
+## PDF core worker
+
+| Variable            | Default     | Purpose                                   |
+| ------------------- | ----------- | ----------------------------------------- |
+| `PORT`              | `8020`      | Worker HTTP port                          |
+| `WORKER_API_TOKEN`  | unset       | Bearer token required on execution routes |
+| `MAX_REQUEST_BYTES` | `157286400` | Maximum internal JSON request body        |
+
+`WORKER_API_TOKEN` must match `PDF_CORE_WORKER_TOKEN` on Nest.
+
+## Chromium worker
+
+| Variable                    | Default       | Purpose                                |
+| --------------------------- | ------------- | -------------------------------------- |
+| `PORT`                      | `8010`        | Worker HTTP port                       |
+| `API_TOKEN`                 | unset         | Bearer token required on render routes |
+| `MAX_REQUEST_BYTES`         | `5242880`     | Maximum JSON body                      |
+| `PUPPETEER_EXECUTABLE_PATH` | auto-detected | Chromium executable                    |
+
+`API_TOKEN` must match `PDF_RENDER_WORKER_TOKEN` on Nest.
+
+## Secret handling
+
+- Keep worker tokens in the target platform's secret manager.
+- Never include worker tokens in `NEXT_PUBLIC_*` variables.
+- Never expose private worker URLs to the console.
+- Use long, independently generated values for the two worker groups.
+- Rotate a worker token by updating the worker first, then Nest during a
+  controlled rollout.

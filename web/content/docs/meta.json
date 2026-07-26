@@ -3,10 +3,13 @@
   "pages": [
     "index",
     "quickstart",
+    "api-reference",
     "tools",
     "---Architecture---",
     "architecture",
+    "configuration",
     "workers",
-    "deployment"
+    "deployment",
+    "troubleshooting"
   ]
 }

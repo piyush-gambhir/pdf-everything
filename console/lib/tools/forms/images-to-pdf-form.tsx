@@ -1,37 +1,37 @@
-'use client';
+"use client"
 
-import { useId } from 'react';
+import { useId } from "react"
 import type {
   ImagesToPdfOptions,
   PageSize,
   Orientation,
-} from '@pdf-everything/types';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@pdf-everything/types"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import type { OptionsFormProps } from '../types';
+} from "@/components/ui/select"
+import type { OptionsFormProps } from "../types"
 
-const PAGE_SIZES: PageSize[] = ['a4', 'a3', 'a5', 'letter', 'legal', 'auto'];
-const ORIENTATIONS: Orientation[] = ['portrait', 'landscape', 'auto'];
-const FITS: ImagesToPdfOptions['fit'][] = ['contain', 'cover', 'stretch'];
+const PAGE_SIZES: PageSize[] = ["a4", "a3", "a5", "letter", "legal", "auto"]
+const ORIENTATIONS: Orientation[] = ["portrait", "landscape", "auto"]
+const FITS: ImagesToPdfOptions["fit"][] = ["contain", "cover", "stretch"]
 
 export function ImagesToPdfOptionsForm({
   value,
   onChange,
 }: OptionsFormProps<ImagesToPdfOptions>) {
-  const psId = useId();
-  const orId = useId();
-  const mId = useId();
-  const fId = useId();
+  const psId = useId()
+  const orId = useId()
+  const mId = useId()
+  const fId = useId()
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid gap-3 sm:grid-cols-2">
       <div>
         <Label htmlFor={psId}>Page size</Label>
         <Select
@@ -54,7 +54,9 @@ export function ImagesToPdfOptionsForm({
         <Label htmlFor={orId}>Orientation</Label>
         <Select
           value={value.orientation}
-          onValueChange={(v) => onChange({ ...value, orientation: v as Orientation })}
+          onValueChange={(v) =>
+            onChange({ ...value, orientation: v as Orientation })
+          }
         >
           <SelectTrigger id={orId}>
             <SelectValue />
@@ -76,7 +78,9 @@ export function ImagesToPdfOptionsForm({
           min={0}
           max={144}
           value={value.margin}
-          onChange={(e) => onChange({ ...value, margin: Number(e.target.value) || 0 })}
+          onChange={(e) =>
+            onChange({ ...value, margin: Number(e.target.value) || 0 })
+          }
         />
       </div>
       <div>
@@ -84,7 +88,7 @@ export function ImagesToPdfOptionsForm({
         <Select
           value={value.fit}
           onValueChange={(v) =>
-            onChange({ ...value, fit: v as ImagesToPdfOptions['fit'] })
+            onChange({ ...value, fit: v as ImagesToPdfOptions["fit"] })
           }
         >
           <SelectTrigger id={fId}>
@@ -100,5 +104,5 @@ export function ImagesToPdfOptionsForm({
         </Select>
       </div>
     </div>
-  );
+  )
 }

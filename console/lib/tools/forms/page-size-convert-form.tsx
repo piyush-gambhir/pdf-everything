@@ -1,37 +1,46 @@
-'use client';
+"use client"
 
-import { useId } from 'react';
-import type { PageSizeConvertOptions } from '@pdf-everything/types';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useId } from "react"
+import type { PageSizeConvertOptions } from "@pdf-everything/types"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import type { OptionsFormProps } from '../types';
+} from "@/components/ui/select"
+import type { OptionsFormProps } from "../types"
 
-const TARGETS: PageSizeConvertOptions['targetSize'][] = ['a4', 'a3', 'a5', 'letter', 'legal'];
+const TARGETS: PageSizeConvertOptions["targetSize"][] = [
+  "a4",
+  "a3",
+  "a5",
+  "letter",
+  "legal",
+]
 
 export function PageSizeConvertOptionsForm({
   value,
   onChange,
 }: OptionsFormProps<PageSizeConvertOptions>) {
-  const tId = useId();
-  const oId = useId();
-  const fId = useId();
-  const pId = useId();
+  const tId = useId()
+  const oId = useId()
+  const fId = useId()
+  const pId = useId()
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <Label htmlFor={tId}>Target size</Label>
           <Select
             value={value.targetSize}
             onValueChange={(v) =>
-              onChange({ ...value, targetSize: v as PageSizeConvertOptions['targetSize'] })
+              onChange({
+                ...value,
+                targetSize: v as PageSizeConvertOptions["targetSize"],
+              })
             }
           >
             <SelectTrigger id={tId}>
@@ -51,7 +60,7 @@ export function PageSizeConvertOptionsForm({
           <Select
             value={value.orientation}
             onValueChange={(v) =>
-              onChange({ ...value, orientation: v as 'portrait' | 'landscape' })
+              onChange({ ...value, orientation: v as "portrait" | "landscape" })
             }
           >
             <SelectTrigger id={oId}>
@@ -68,7 +77,7 @@ export function PageSizeConvertOptionsForm({
           <Select
             value={value.fitMode}
             onValueChange={(v) =>
-              onChange({ ...value, fitMode: v as 'scale' | 'box-only' })
+              onChange({ ...value, fitMode: v as "scale" | "box-only" })
             }
           >
             <SelectTrigger id={fId}>
@@ -76,7 +85,9 @@ export function PageSizeConvertOptionsForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="scale">Scale content to fit</SelectItem>
-              <SelectItem value="box-only">Resize page only (keep content)</SelectItem>
+              <SelectItem value="box-only">
+                Resize page only (keep content)
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -85,11 +96,13 @@ export function PageSizeConvertOptionsForm({
           <Input
             id={pId}
             placeholder="all"
-            value={value.pages ?? ''}
-            onChange={(e) => onChange({ ...value, pages: e.target.value || undefined })}
+            value={value.pages ?? ""}
+            onChange={(e) =>
+              onChange({ ...value, pages: e.target.value || undefined })
+            }
           />
         </div>
       </div>
     </div>
-  );
+  )
 }

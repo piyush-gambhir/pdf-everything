@@ -1,27 +1,33 @@
-import type { ReactNode } from 'react';
-import { Geist_Mono, Inter } from 'next/font/google';
+import type { ReactNode } from "react"
+import { Geist, Geist_Mono } from "next/font/google"
 
-import './globals.css';
-import { ThemeProvider } from '@/components/theme-provider';
-import { SiteSidebar } from '@/components/site-sidebar';
-import { SiteHeader } from '@/components/site-header';
-import { Toaster } from '@/components/ui/sonner';
-import { cn } from '@/lib/utils';
+import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import { SiteSidebar } from "@/components/site-sidebar"
+import { SiteHeader } from "@/components/site-header"
+import { Toaster } from "@/components/ui/sonner"
+import { cn } from "@/lib/utils"
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
-const fontMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono' });
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" })
+const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
 
 export const metadata = {
-  title: 'pdf-everything',
-  description: 'Every PDF tool, in one place. Same APIs FE and external clients use.',
-};
+  title: "pdf-everything",
+  description:
+    "Every PDF tool, in one place. Same APIs FE and external clients use.",
+}
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn('antialiased', fontMono.variable, 'font-sans', inter.variable)}
+      className={cn(
+        "antialiased",
+        fontMono.variable,
+        "font-sans",
+        geist.variable
+      )}
     >
       <body>
         <ThemeProvider>
@@ -33,12 +39,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <SiteSidebar />
             <div className="flex min-w-0 flex-1 flex-col">
               <SiteHeader />
-              <main className="scroll-subtle flex-1 overflow-y-auto">{children}</main>
+              <main className="scroll-subtle flex-1 overflow-y-auto">
+                {children}
+              </main>
             </div>
           </div>
           <Toaster richColors position="top-right" />
         </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

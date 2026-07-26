@@ -1,51 +1,135 @@
 ---
 title: Quickstart
-description: Run your first PDF operation over HTTP.
+description: Run the local stack and complete your first PDF request.
 ---
 
-Every tool is a `POST` with `multipart/form-data`: one or more files, plus an
-`options` field containing JSON.
+## Prerequisites
+
+- Node.js 24 or newer
+- pnpm 11
+- Docker when you want to run the production worker images
+- A local Chromium installation only for the browser worker's integration tests
+
+## Run the repository
+
+Install the root workspace and start the web, console, API, and PDF core worker:
+
+```bash
+pnpm install
+pnpm dev
+```
+
+The Chromium worker owns a separate lockfile. Start it in another terminal:
+
+```bash
+cd workers/pdf-worker
+corepack pnpm install
+corepack pnpm dev
+```
+
+Default local addresses:
+
+| Surface         | URL                                             |
+| --------------- | ----------------------------------------------- |
+| Console         | `http://localhost:3000/pdf-everything/console/` |
+| API             | `http://localhost:3001/api`                     |
+| Swagger UI      | `http://localhost:3001/api/docs`                |
+| Website + docs  | `http://localhost:3002/pdf-everything/`         |
+| PDF core worker | `http://localhost:8020`                         |
+| Chromium worker | `http://localhost:8010`                         |
+
+Verify the three runtime services:
+
+```bash
+curl --fail http://localhost:3001/api/health
+curl --fail http://localhost:8020/ready
+curl --fail http://localhost:8010/ready
+```
 
 ## Merge two PDFs
 
+File-based tools use `multipart/form-data`. Multiple-file operations use the
+`files` field; single-file operations use `file`. Options are JSON encoded:
+
 ```bash
-curl -X POST "$API_ORIGIN/api/v1/organize/merge" \
+export API_ORIGIN=http://localhost:3001
+
+curl --fail -X POST "$API_ORIGIN/api/v1/organize/merge" \
   -F "files=@first.pdf" \
   -F "files=@second.pdf" \
   -F 'options={}' \
   -o merged.pdf
 ```
 
-## Field names
-
-`files` is used by tools that take several documents (merge, images-to-pdf).
-Single-document tools use `file`:
+## Rotate one PDF
 
 ```bash
-curl -X POST "$API_ORIGIN/api/v1/organize/rotate" \
+curl --fail -X POST "$API_ORIGIN/api/v1/organize/rotate" \
   -F "file=@input.pdf" \
-  -F 'options={"angle":90}' \
+  -F 'options={"angle":90,"pages":"1-3"}' \
   -o rotated.pdf
 ```
 
-## Responses
+## Render Markdown
 
-Most tools stream a PDF straight back. Some return JSON instead — `split`
-returns a list of generated files, and `forms/extract` returns field data.
-
-Errors come back as [RFC 9457 problem documents](https://www.rfc-editor.org/rfc/rfc9457),
-so `title` and `detail` are safe to surface directly to users.
-
-## Browser rendering
-
-HTML and Markdown use JSON bodies and the same public Nest API:
+HTML and Markdown accept JSON through the public Nest API. Nest forwards the
+validated request to the private Chromium worker:
 
 ```bash
-curl -X POST "$API_ORIGIN/api/v1/render/markdown" \
+curl --fail -X POST "$API_ORIGIN/api/v1/render/markdown" \
   -H 'content-type: application/json' \
-  -d '{"markdown":"# Hello","template":"github","title":"Document"}' \
+  -d '{
+    "markdown":"# Hello\n\nRendered by pdf-everything.",
+    "template":"github",
+    "title":"Example",
+    "format":"A4"
+  }' \
   -o document.pdf
 ```
 
-Nest forwards the validated request to the private Chromium worker. Clients do
-not need the worker URL or worker token.
+## Return a file reference
+
+Most single-output PDF endpoints stream the file by default. Add `?output=ref`
+to store the result temporarily and receive metadata instead:
+
+```bash
+curl --fail -X POST \
+  "$API_ORIGIN/api/v1/organize/rotate?output=ref" \
+  -F "file=@input.pdf" \
+  -F 'options={"angle":90}'
+```
+
+Download the result with:
+
+```bash
+curl --fail \
+  "$API_ORIGIN/api/v1/files/FILE_ID/content" \
+  -o result.pdf
+```
+
+`split` always returns file metadata because it creates multiple outputs.
+`forms/extract` returns JSON and `extract-text` returns plain text.
+
+## JavaScript example
+
+```ts
+const body = new FormData();
+body.append('file', pdfFile);
+body.append('options', JSON.stringify({ angle: 90 }));
+
+const response = await fetch(`${process.env.PDF_API_ORIGIN}/api/v1/organize/rotate`, {
+  method: 'POST',
+  body,
+});
+
+if (!response.ok) {
+  const problem = await response.json();
+  throw new Error(problem.detail ?? problem.title);
+}
+
+const rotatedPdf = await response.arrayBuffer();
+```
+
+Continue with the [API reference](/docs/api-reference) or open the
+
+<ConsoleLink>console</ConsoleLink> to inspect every option visually.

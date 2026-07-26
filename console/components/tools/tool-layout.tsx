@@ -1,7 +1,18 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Loader2, Download, RotateCcw, FileText } from "lucide-react"
+import {
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Download,
+  FileText,
+  FileUp,
+  Loader2,
+  LockKeyhole,
+  RotateCcw,
+  Settings2,
+} from "lucide-react"
 import { toast } from "sonner"
 import type { FileMeta } from "@pdf-everything/types"
 import {
@@ -14,9 +25,9 @@ import {
 } from "@/lib/api"
 import { formatBytes } from "@/lib/format"
 import { getTool } from "@/lib/tools/registry"
+import { CATEGORY_META } from "@/lib/tools/types"
 import type { AnyToolDefinition } from "@/lib/tools/types"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { FileDropzone } from "./file-dropzone"
 
 interface ToolLayoutProps {
@@ -116,38 +127,96 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
     : tool.multiple
       ? `Up to ${tool.maxFiles} files`
       : "One file at a time"
+  const ToolIcon = tool.Icon
+  const category = CATEGORY_META[tool.category]
+  const inputReady = !requiresFiles || files.length >= tool.minFiles
+  const configureReady = inputReady
 
   return (
-    <div className="w-full px-6 pt-2 pb-14">
-      {/* Title and category live in the app header; the page only needs the
-          descriptive line. */}
-      <p className="mb-5 max-w-2xl type-body text-muted-foreground">
-        {tool.description}
-      </p>
+    <div className="mx-auto w-full max-w-[1400px] px-4 py-4 sm:px-5 lg:px-6 lg:py-5">
+      <section className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-soft text-accent">
+            <ToolIcon className="size-4" strokeWidth={1.8} />
+          </span>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="ui-micro font-semibold tracking-[0.08em] text-accent uppercase">
+                {category.label}
+              </span>
+              <span className="size-1 rounded-full bg-muted-foreground/35" />
+              <code className="ui-micro font-mono text-subtle-foreground">
+                {tool.endpoint}
+              </code>
+            </div>
+            <h2 className="ui-title mt-0.5 font-semibold tracking-[-0.02em]">
+              {tool.title}
+            </h2>
+            <p className="ui-body mt-0.5 max-w-2xl text-muted-foreground">
+              {tool.description}
+            </p>
+          </div>
+        </div>
+        <div className="ui-micro flex shrink-0 items-center gap-1.5 rounded-md bg-success-soft px-2 py-1 font-medium text-success">
+          <LockKeyhole className="size-3" />
+          Processed by your workers
+        </div>
+      </section>
+
+      <div className="mt-4 rounded-lg bg-surface-1 px-3 py-2.5">
+        <div className="flex items-center">
+          {requiresFiles && (
+            <>
+              <WorkflowStep
+                number={1}
+                label={tool.multiple ? "Add files" : "Add file"}
+                complete={inputReady}
+                active={!inputReady}
+              />
+              <StepConnector complete={inputReady} />
+            </>
+          )}
+          <WorkflowStep
+            number={requiresFiles ? 2 : 1}
+            label="Configure"
+            complete={Boolean(result)}
+            active={configureReady && !result}
+          />
+          <StepConnector complete={Boolean(result)} />
+          <WorkflowStep
+            number={requiresFiles ? 3 : 2}
+            label="Download"
+            complete={Boolean(result)}
+            active={Boolean(result)}
+          />
+        </div>
+      </div>
 
       {result ? (
-        <Card className="bg-surface-2">
-          <CardContent className="pt-6">
-            <ResultView result={result} onReset={reset} tool={tool} />
-          </CardContent>
-        </Card>
+        <div className="app-panel mt-3 p-4 sm:p-5">
+          <ResultView result={result} onReset={reset} tool={tool} />
+        </div>
       ) : (
-        // Work area on the left, options rail on the right. The rail sticks so
-        // the run button stays reachable while a long file list scrolls.
         <div
           className={
             requiresFiles
-              ? "grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]"
-              : "max-w-3xl"
+              ? "mt-3 grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_22rem]"
+              : "mt-3 max-w-4xl"
           }
         >
           {requiresFiles && (
-            <Card className="bg-surface-2">
-              <CardContent className="space-y-4 pt-6">
-                <StepHeading
-                  n={1}
-                  label={tool.multiple ? "Add your files" : "Add your file"}
-                />
+            <section className="app-panel p-4">
+              <StepHeading
+                icon={FileUp}
+                eyebrow="Input"
+                label={tool.multiple ? "Add your files" : "Add your file"}
+                description={
+                  tool.multiple
+                    ? `Choose ${tool.minFiles}–${tool.maxFiles} files. You can review and reorder them before running.`
+                    : "Choose a file to begin. You can replace it at any time."
+                }
+              />
+              <div className="mt-3">
                 <FileDropzone
                   files={files}
                   onChange={setFiles}
@@ -159,31 +228,35 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
                     tool.id === "merge" || tool.id === "images-to-pdf"
                   }
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           )}
 
-          <Card
+          <section
             className={
-              requiresFiles ? "bg-surface-2 lg:sticky lg:top-2" : "bg-surface-2"
+              requiresFiles
+                ? "app-panel overflow-hidden lg:sticky lg:top-4"
+                : "app-panel overflow-hidden"
             }
           >
-            <CardContent className="space-y-4 pt-6">
-              <StepHeading n={requiresFiles ? 2 : 1} label="Configure & run" />
+            <div className="p-4">
+              <StepHeading
+                icon={Settings2}
+                eyebrow="Settings"
+                label="Configure the output"
+                description="Adjust the options below, then run this workflow."
+              />
 
-              {!requiresFiles || files.length > 0 ? (
+              <div className="mt-4">
                 <tool.OptionsForm
                   value={options as never}
                   onChange={setOptions as never}
                   fileNames={files.map((f) => f.name)}
                 />
-              ) : (
-                <p className="rounded-lg bg-surface-3 px-3 py-2.5 type-caption text-muted-foreground">
-                  Add {tool.multiple ? "files" : "a file"} to see the options
-                  for this tool.
-                </p>
-              )}
+              </div>
+            </div>
 
+            <div className="bg-surface-2 p-4">
               <Button
                 className="w-full"
                 size="lg"
@@ -193,60 +266,146 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
                 {busy ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    Working…
+                    Processing…
                   </>
                 ) : (
-                  <>{tool.title}</>
+                  <>
+                    {tool.title}
+                    <ArrowRight className="size-4" />
+                  </>
                 )}
               </Button>
 
-              <dl className="space-y-1.5 pt-1">
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="type-caption text-muted-foreground">
-                    Accepts
-                  </dt>
-                  <dd className="truncate type-caption font-medium">
-                    {formatHint}
-                  </dd>
-                </div>
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="type-caption text-muted-foreground">Limit</dt>
-                  <dd className="type-caption font-medium">{limitHint}</dd>
-                </div>
+              {!canSubmit && requiresFiles && (
+                <p className="ui-caption mt-2.5 text-center text-muted-foreground">
+                  Add{" "}
+                  {tool.minFiles === 1
+                    ? "a file"
+                    : `at least ${tool.minFiles} files`}{" "}
+                  to continue
+                </p>
+              )}
+
+              <dl className="mt-4 grid grid-cols-2 gap-2">
+                <SummaryItem label="Accepts" value={formatHint} />
+                <SummaryItem label="Limit" value={limitHint} />
                 {files.length > 0 && (
-                  <div className="flex items-baseline justify-between gap-3">
-                    <dt className="type-caption text-muted-foreground">
-                      Selected
-                    </dt>
-                    <dd className="type-caption font-medium">
-                      {files.length} {files.length === 1 ? "file" : "files"}
-                    </dd>
-                  </div>
+                  <SummaryItem
+                    label="Selected"
+                    value={`${files.length} ${files.length === 1 ? "file" : "files"}`}
+                  />
                 )}
+                <SummaryItem
+                  label="Output"
+                  value={resultLabel(tool.responseType)}
+                />
               </dl>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         </div>
       )}
     </div>
   )
 }
 
-/** Numbered step marker so the page reads as a sequence, not a wall of controls. */
-function StepHeading({ n, label }: { n: number; label: string }) {
+function StepHeading({
+  icon: Icon,
+  eyebrow,
+  label,
+  description,
+}: {
+  icon: typeof FileUp
+  eyebrow: string
+  label: string
+  description: string
+}) {
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="grid size-5 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
-        {n}
+    <div className="flex items-start gap-3">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+        <Icon className="size-4" />
       </span>
-      <h2 className="type-section">{label}</h2>
+      <div>
+        <p className="ui-micro font-semibold tracking-[0.08em] text-subtle-foreground uppercase">
+          {eyebrow}
+        </p>
+        <h3 className="ui-heading mt-0.5 font-semibold">{label}</h3>
+        <p className="ui-caption mt-1 text-muted-foreground">{description}</p>
+      </div>
     </div>
   )
+}
+
+function WorkflowStep({
+  number,
+  label,
+  complete,
+  active,
+}: {
+  number: number
+  label: string
+  complete: boolean
+  active: boolean
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      <span
+        className={
+          complete
+            ? "ui-micro grid size-5 place-items-center rounded-full bg-success font-semibold text-white"
+            : active
+              ? "ui-micro grid size-5 place-items-center rounded-full bg-accent font-semibold text-accent-foreground"
+              : "ui-micro grid size-5 place-items-center rounded-full bg-muted font-semibold text-muted-foreground"
+        }
+      >
+        {complete ? <Check className="size-3" /> : number}
+      </span>
+      <span
+        className={
+          active || complete
+            ? "ui-caption hidden font-medium text-foreground sm:inline"
+            : "ui-caption hidden font-medium text-subtle-foreground sm:inline"
+        }
+      >
+        {label}
+      </span>
+    </div>
+  )
+}
+
+function StepConnector({ complete }: { complete: boolean }) {
+  return (
+    <span
+      className={
+        complete
+          ? "mx-2 h-px min-w-4 flex-1 bg-success/45 sm:mx-4"
+          : "mx-2 h-px min-w-4 flex-1 bg-muted sm:mx-4"
+      }
+    />
+  )
+}
+
+function SummaryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-background px-2.5 py-2">
+      <dt className="ui-micro font-semibold tracking-[0.08em] text-subtle-foreground uppercase">
+        {label}
+      </dt>
+      <dd className="ui-caption mt-0.5 truncate font-medium">{value}</dd>
+    </div>
+  )
+}
+
+function resultLabel(responseType: AnyToolDefinition["responseType"]): string {
+  if (responseType === "text") return "Text file"
+  if (responseType === "json") return "JSON"
+  if (responseType === "multi-files") return "Multiple PDFs"
+  return "PDF file"
 }
 
 function ResultView({
   result,
   onReset,
+  tool,
 }: {
   result: Result
   onReset: () => void
@@ -254,17 +413,22 @@ function ResultView({
 }) {
   if (result.kind === "binary") {
     return (
-      <div className="space-y-4 text-center">
-        <div className="mx-auto grid size-14 place-items-center rounded-full bg-primary/10 text-primary">
-          <Download className="size-6" />
+      <div className="py-3 text-center">
+        <div className="mx-auto grid size-12 place-items-center rounded-full bg-success-soft text-success">
+          <CheckCircle2 className="size-5" />
         </div>
         <div>
-          <h3 className="text-lg font-medium">Ready to download</h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="ui-micro mt-4 font-semibold tracking-[0.08em] text-success uppercase">
+            Processing complete
+          </p>
+          <h3 className="ui-title mt-1 font-semibold">
+            Your {tool.title.toLowerCase()} is ready
+          </h3>
+          <p className="ui-body mt-1 text-muted-foreground">
             {result.filename} · {formatBytes(result.size)}
           </p>
         </div>
-        <div className="flex justify-center gap-2">
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Button asChild size="lg">
             <a href={result.url} download={result.filename}>
               <Download className="size-4" />
@@ -283,19 +447,25 @@ function ResultView({
     return (
       <div className="space-y-4">
         <div className="text-center">
-          <div className="mx-auto grid size-14 place-items-center rounded-full bg-primary/10 text-primary">
-            <Download className="size-6" />
+          <div className="mx-auto grid size-12 place-items-center rounded-full bg-success-soft text-success">
+            <CheckCircle2 className="size-5" />
           </div>
-          <h3 className="mt-2 text-lg font-medium">
+          <p className="ui-micro mt-4 font-semibold tracking-[0.08em] text-success uppercase">
+            Processing complete
+          </p>
+          <h3 className="ui-title mt-1 font-semibold">
             {result.files.length} files ready
           </h3>
         </div>
-        <ul className="divide-y divide-background/60 overflow-hidden rounded-xl bg-surface-3">
+        <ul className="space-y-1 overflow-hidden rounded-xl bg-surface-1 p-1">
           {result.files.map((f) => (
-            <li key={f.id} className="flex items-center gap-3 px-3 py-2">
+            <li
+              key={f.id}
+              className="flex items-center gap-3 rounded-lg bg-background px-3 py-2.5"
+            >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{f.originalName}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="ui-body truncate font-medium">{f.originalName}</p>
+                <p className="ui-caption text-muted-foreground">
                   {formatBytes(f.size)}
                 </p>
               </div>
@@ -322,19 +492,19 @@ function ResultView({
     const url = URL.createObjectURL(blob)
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <div className="grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
+            <div className="grid size-9 place-items-center rounded-lg bg-success-soft text-success">
               <FileText className="size-5" />
             </div>
             <div>
-              <p className="text-sm font-medium">{result.filename}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="ui-body font-medium">{result.filename}</p>
+              <p className="ui-caption text-muted-foreground">
                 {formatBytes(new Blob([result.text]).size)}
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button asChild>
               <a href={url} download={result.filename}>
                 <Download className="size-4" />
@@ -347,7 +517,7 @@ function ResultView({
             </Button>
           </div>
         </div>
-        <pre className="max-h-96 overflow-auto rounded-lg bg-surface-3 p-3 font-mono text-xs whitespace-pre-wrap">
+        <pre className="ui-caption max-h-96 overflow-auto rounded-xl bg-surface-1 p-4 font-mono whitespace-pre-wrap">
           {result.text || "(no text extracted)"}
         </pre>
       </div>
@@ -359,14 +529,14 @@ function ResultView({
   const url = URL.createObjectURL(blob)
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <div className="grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
+          <div className="grid size-9 place-items-center rounded-lg bg-success-soft text-success">
             <FileText className="size-5" />
           </div>
-          <p className="text-sm font-medium">JSON result</p>
+          <p className="ui-body font-medium">JSON result</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button asChild>
             <a href={url} download="result.json">
               <Download className="size-4" />
@@ -379,7 +549,7 @@ function ResultView({
           </Button>
         </div>
       </div>
-      <pre className="max-h-96 overflow-auto rounded-lg bg-surface-3 p-3 font-mono text-xs">
+      <pre className="ui-caption max-h-96 overflow-auto rounded-xl bg-surface-1 p-4 font-mono">
         {json}
       </pre>
     </div>

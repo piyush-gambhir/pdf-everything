@@ -1,0 +1,97 @@
+---
+title: Troubleshooting
+description: Diagnose broken links, API connectivity, worker failures, files, and Lambda deployments.
+---
+
+## The console docs link opens a 404
+
+The console and docs are separate static applications. During local
+development, run the web app on port `3002`; the console automatically points
+there. If you use a different port or origin, build the console with:
+
+```bash
+NEXT_PUBLIC_SITE_ORIGIN=http://localhost:3002 \
+pnpm --filter @pdf-everything/console build
+```
+
+In production, route both `/pdf-everything/**` and
+`/pdf-everything/console/**` on the same origin, or set the explicit site and
+console origins at build time.
+
+## The console cannot reach the API
+
+1. Open `http://localhost:3001/api/health`.
+2. Confirm `NEXT_PUBLIC_API_ORIGIN` has no `/api` suffix.
+3. Rebuild the console after changing a public environment variable.
+4. Inspect the browser network request for CORS or mixed-content failures.
+5. Confirm the deployed API allows the console origin.
+
+## The API returns `worker_unavailable`
+
+Check the corresponding readiness route:
+
+```bash
+curl --fail http://pdf-core-worker:8020/ready
+curl --fail http://pdf-worker:8010/ready
+```
+
+Then verify the worker URL, service discovery, port, and bearer-token pair. A
+token mismatch usually returns `401`; a connection or DNS failure returns
+`503` from Nest.
+
+## A stored result cannot be downloaded
+
+Stored files expire after `FILE_TTL_HOURS` and are held in `STORAGE_DIR`.
+Confirm that:
+
+- the file has not expired;
+- the Nest process can write the directory;
+- the same storage is visible to the replica handling the download;
+- a container restart did not discard an ephemeral volume.
+
+For more than one Nest replica, replace local storage with shared object
+storage before production.
+
+## Chromium is not ready
+
+The browser worker's `/ready` route verifies Chromium discovery. Check:
+
+- `PUPPETEER_EXECUTABLE_PATH`;
+- image architecture matches the host;
+- the container has enough memory;
+- `/tmp` is writable on Lambda;
+- required fonts and Chromium libraries are present.
+
+Begin with 2 GiB for Chromium and concurrency `1` or `2`.
+
+## Lambda rejects the image
+
+Lambda requires:
+
+- a Linux image targeting one architecture, not a multi-architecture index;
+- no OCI provenance index when the loader expects a single manifest;
+- an image stored in private ECR in the same Region as the function;
+- matching Lambda and image architecture;
+- a writable `/tmp` path for Chromium data.
+
+The included deployment script builds with `--provenance=false` and handles the
+same-region ECR push.
+
+## Lambda returns a payload-size error
+
+Synchronous Lambda request and response payloads are limited. Do not pass large
+PDFs through a Lambda Function URL. Upload source files to object storage, send
+only references to the job, and write the result back to object storage.
+
+See [Deployment](/docs/deployment#aws-lambda) for the recommended Lambda shape.
+
+## A page-range request is rejected
+
+Use a one-based comma-separated range:
+
+```text
+1-3,5,7-9
+```
+
+Do not use spaces around the hyphen, reversed ranges, page zero, or array
+syntax.

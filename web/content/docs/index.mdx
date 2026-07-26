@@ -1,24 +1,48 @@
 ---
 title: Introduction
-description: What pdf-everything is, and how the pieces fit together.
+description: Understand pdf-everything, choose an integration path, and find the right guide.
 ---
 
-**pdf-everything** is a set of PDF tools that runs both as a browser console and as
-a REST API. The console is not a special client — it calls exactly the same
-endpoints any external caller would.
+**pdf-everything** is an open-source PDF platform with nineteen operations, a
+browser console, and a versioned REST API. The console is a normal API client:
+anything you can do visually can also be automated from your own application.
 
-## The pieces
+## Choose how you want to use it
 
-| Piece               | What it is                                                         |
-| ------------------- | ------------------------------------------------------------------ |
-| **Console**         | The statically deployed Next.js UI for every tool.                 |
-| **Nest API**        | The public REST contract used by the console and external clients. |
-| **PDF core worker** | Executes the 17 existing PDF, image, text, and form operations.    |
-| **Browser worker**  | Executes HTML → PDF and Markdown → PDF through Chromium.           |
+| Path              | Best for                                                     | Start here                                  |
+| ----------------- | ------------------------------------------------------------ | ------------------------------------------- |
+| Console           | Trying tools, occasional document work, and learning options | <ConsoleLink>Open the console</ConsoleLink> |
+| REST API          | Product integrations, automations, and backend workflows     | [Quickstart](/docs/quickstart)              |
+| Self-hosted stack | Private documents, custom policy, and infrastructure control | [Deployment](/docs/deployment)              |
+| Worker images     | Reusing only the execution layer behind your own gateway     | [Workers](/docs/workers)                    |
 
-## Start here
+## The four deployable surfaces
 
-- [Quickstart](/docs/quickstart) — run your first operation over HTTP.
-- [Tools](/docs/tools) — what each tool does and what it accepts.
-- [Architecture](/docs/architecture) — how the console, API, and workers fit together.
-- [Deployment](/docs/deployment) — run the complete stack.
+| Surface        | Responsibility                                                                 |
+| -------------- | ------------------------------------------------------------------------------ |
+| **Web + docs** | Product site and this documentation. It is a static Next.js export.            |
+| **Console**    | Static UI for all nineteen tools. It contains no PDF implementation.           |
+| **Nest API**   | Public `/api/v1/**` contract, validation, uploads, stored results, and policy. |
+| **Workers**    | PDF core execution and Chromium-based HTML/Markdown rendering.                 |
+
+## Core guarantees
+
+- The console and external clients use the same API contract.
+- Heavy PDF and browser dependencies stay out of the public API process.
+- Workers can scale independently according to their memory and CPU profiles.
+- Worker images are public, but production execution routes should remain
+  private or authenticated.
+- Most operations can return a PDF directly or a temporary file reference.
+- Validation failures and execution errors use RFC 9457-style problem
+  responses.
+
+## Documentation map
+
+- [Quickstart](/docs/quickstart) — run the stack and make the first request.
+- [API reference](/docs/api-reference) — endpoints, inputs, outputs, and options.
+- [Tools](/docs/tools) — scan all operations by category.
+- [Architecture](/docs/architecture) — service boundaries and request flow.
+- [Configuration](/docs/configuration) — environment variables and build-time values.
+- [Workers](/docs/workers) — internal contracts, images, scaling, and security.
+- [Deployment](/docs/deployment) — local, container, Cloud Run, and Lambda paths.
+- [Troubleshooting](/docs/troubleshooting) — common integration and deployment failures.

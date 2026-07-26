@@ -1,24 +1,27 @@
-'use client';
+"use client"
 
-import { useId } from 'react';
-import type { CropOptions } from '@pdf-everything/types';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import type { OptionsFormProps } from '../types';
+import { useId } from "react"
+import type { CropOptions } from "@pdf-everything/types"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import type { OptionsFormProps } from "../types"
 
-export function CropOptionsForm({ value, onChange }: OptionsFormProps<CropOptions>) {
-  const tId = useId();
-  const rId = useId();
-  const bId = useId();
-  const lId = useId();
-  const pId = useId();
+export function CropOptionsForm({
+  value,
+  onChange,
+}: OptionsFormProps<CropOptions>) {
+  const tId = useId()
+  const rId = useId()
+  const bId = useId()
+  const lId = useId()
+  const pId = useId()
 
-  const update = (key: keyof CropOptions['marginPoints'], n: number) =>
-    onChange({ ...value, marginPoints: { ...value.marginPoints, [key]: n } });
+  const update = (key: keyof CropOptions["marginPoints"], n: number) =>
+    onChange({ ...value, marginPoints: { ...value.marginPoints, [key]: n } })
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <Label htmlFor={tId}>Top (pt)</Label>
           <Input
@@ -26,7 +29,7 @@ export function CropOptionsForm({ value, onChange }: OptionsFormProps<CropOption
             type="number"
             min={0}
             value={value.marginPoints.top}
-            onChange={(e) => update('top', Number(e.target.value) || 0)}
+            onChange={(e) => update("top", Number(e.target.value) || 0)}
           />
         </div>
         <div>
@@ -36,7 +39,7 @@ export function CropOptionsForm({ value, onChange }: OptionsFormProps<CropOption
             type="number"
             min={0}
             value={value.marginPoints.right}
-            onChange={(e) => update('right', Number(e.target.value) || 0)}
+            onChange={(e) => update("right", Number(e.target.value) || 0)}
           />
         </div>
         <div>
@@ -46,7 +49,7 @@ export function CropOptionsForm({ value, onChange }: OptionsFormProps<CropOption
             type="number"
             min={0}
             value={value.marginPoints.bottom}
-            onChange={(e) => update('bottom', Number(e.target.value) || 0)}
+            onChange={(e) => update("bottom", Number(e.target.value) || 0)}
           />
         </div>
         <div>
@@ -56,7 +59,7 @@ export function CropOptionsForm({ value, onChange }: OptionsFormProps<CropOption
             type="number"
             min={0}
             value={value.marginPoints.left}
-            onChange={(e) => update('left', Number(e.target.value) || 0)}
+            onChange={(e) => update("left", Number(e.target.value) || 0)}
           />
         </div>
       </div>
@@ -65,11 +68,15 @@ export function CropOptionsForm({ value, onChange }: OptionsFormProps<CropOption
         <Input
           id={pId}
           placeholder="all pages"
-          value={value.pages ?? ''}
-          onChange={(e) => onChange({ ...value, pages: e.target.value || undefined })}
+          value={value.pages ?? ""}
+          onChange={(e) =>
+            onChange({ ...value, pages: e.target.value || undefined })
+          }
         />
-        <p className="text-xs text-muted-foreground mt-1">72pt = 1 inch. Leave pages blank for all.</p>
+        <p className="ui-caption mt-1 text-muted-foreground">
+          72pt = 1 inch. Leave pages blank for all.
+        </p>
       </div>
     </div>
-  );
+  )
 }

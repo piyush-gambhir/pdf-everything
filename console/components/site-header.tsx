@@ -1,87 +1,95 @@
-'use client';
+"use client"
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useTheme } from 'next-themes';
-import { BookOpen, Moon, Sun } from 'lucide-react';
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { useTheme } from "next-themes"
+import { Blocks, BookOpen, Moon, Sun } from "lucide-react"
 
-import { TOOLS } from '@/lib/tools/registry';
-import { CATEGORY_META } from '@/lib/tools/types';
-import { cn } from '@/lib/utils';
+import { TOOLS } from "@/lib/tools/registry"
+import { CATEGORY_META } from "@/lib/tools/types"
+import { DOCS_URL } from "@/lib/links"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
 /** Resolve the current route to a page title plus its category. */
 function useRouteLabel() {
-  const pathname = usePathname();
+  const pathname = usePathname()
   // usePathname() is already basePath-relative, so the tool id is just the
   // path segment. Strip BOTH slashes — `trailingSlash: true` means the path is
   // "/merge/", and leaving the trailing slash breaks the lookup.
-  const id = pathname.replace(/^\/+|\/+$/g, '') || null;
-  const tool = id ? TOOLS.find((t) => t.id === id) : undefined;
+  const id = pathname.replace(/^\/+|\/+$/g, "") || null
+  const tool = id ? TOOLS.find((t) => t.id === id) : undefined
 
   if (!tool) {
-    return { section: null as string | null, title: id ?? 'All tools' };
+    return { section: null as string | null, title: id ?? "All tools" }
   }
 
-  const meta = CATEGORY_META[tool.category as keyof typeof CATEGORY_META];
-  return { section: meta?.label ?? null, title: tool.title };
+  const meta = CATEGORY_META[tool.category as keyof typeof CATEGORY_META]
+  return { section: meta?.label ?? null, title: tool.title }
 }
 
 function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme()
 
   // The icon is swapped by CSS off the `dark` class next-themes puts on <html>,
   // rather than by mount state. That avoids both a hydration mismatch and the
   // first-paint icon flicker, with no effect needed.
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-sm"
       aria-label="Toggle theme"
       title="Toggle theme (d)"
-      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-      className={cn(
-        'grid size-8 place-items-center rounded-lg text-muted-foreground',
-        'transition-colors hover:bg-surface-3 hover:text-foreground',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-      )}
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+      className="text-muted-foreground"
     >
       <Moon className="size-4 dark:hidden" />
       <Sun className="hidden size-4 dark:block" />
-    </button>
-  );
+    </Button>
+  )
 }
 
 export function SiteHeader() {
-  const { section, title } = useRouteLabel();
+  const { section, title } = useRouteLabel()
 
   return (
-    // Same surface as the sidebar, so the two read as one continuous top band.
-    <header className="sticky top-0 z-20 shrink-0 bg-sidebar">
-      <div className="flex h-14 items-center gap-3 px-6">
+    <header className="sticky top-0 z-20 shrink-0 bg-muted/40 backdrop-blur-md">
+      <div className="flex h-11 items-center gap-3 px-4 sm:px-5 lg:px-6">
+        <Link href="/" className="mr-1 flex items-center gap-2 md:hidden">
+          <span className="grid size-7 place-items-center rounded-md bg-accent text-accent-foreground">
+            <Blocks className="size-4" />
+          </span>
+          <span className="ui-heading hidden font-semibold sm:block">
+            pdf-everything
+          </span>
+        </Link>
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="type-title truncate">{title}</h1>
+          <h1 className="ui-heading truncate font-semibold tracking-[-0.01em]">
+            {title}
+          </h1>
           {section ? (
-            // A quiet chip instead of a slash-separated crumb trail.
-            <span className="shrink-0 rounded-md bg-surface-3 px-2 py-0.5 type-eyebrow text-muted-foreground">
+            <span className="ui-micro hidden shrink-0 rounded bg-brand-soft px-1.5 py-0.5 font-semibold tracking-[0.08em] text-accent uppercase sm:inline">
               {section}
             </span>
           ) : null}
         </div>
 
         <div className="ml-auto flex items-center gap-1">
-          <Link
-            href="/api/docs"
+          <a
+            href={DOCS_URL}
             className={cn(
-              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 type-caption text-muted-foreground',
-              'transition-colors hover:bg-surface-3 hover:text-foreground',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+              "ui-caption flex h-7 items-center gap-1.5 rounded-md bg-background px-2 font-medium text-muted-foreground shadow-xs",
+              "transition-colors hover:bg-muted hover:text-foreground",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             )}
           >
             <BookOpen className="size-3.5" />
             API docs
-          </Link>
+          </a>
           <ThemeToggle />
         </div>
       </div>
     </header>
-  );
+  )
 }

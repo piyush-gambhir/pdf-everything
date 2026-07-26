@@ -1,37 +1,40 @@
-'use client';
+"use client"
 
-import { useId } from 'react';
-import type { WatermarkOptions, Position } from '@pdf-everything/types';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useId } from "react"
+import type { WatermarkOptions, Position } from "@pdf-everything/types"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import type { OptionsFormProps } from '../types';
+} from "@/components/ui/select"
+import type { OptionsFormProps } from "../types"
 
 const POSITIONS: Position[] = [
-  'top-left',
-  'top-center',
-  'top-right',
-  'middle-left',
-  'middle-center',
-  'middle-right',
-  'bottom-left',
-  'bottom-center',
-  'bottom-right',
-];
+  "top-left",
+  "top-center",
+  "top-right",
+  "middle-left",
+  "middle-center",
+  "middle-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right",
+]
 
-export function WatermarkOptionsForm({ value, onChange }: OptionsFormProps<WatermarkOptions>) {
-  const tId = useId();
-  const pId = useId();
-  const fId = useId();
-  const oId = useId();
-  const rId = useId();
-  const pgId = useId();
+export function WatermarkOptionsForm({
+  value,
+  onChange,
+}: OptionsFormProps<WatermarkOptions>) {
+  const tId = useId()
+  const pId = useId()
+  const fId = useId()
+  const oId = useId()
+  const rId = useId()
+  const pgId = useId()
 
   return (
     <div className="space-y-3">
@@ -44,12 +47,14 @@ export function WatermarkOptionsForm({ value, onChange }: OptionsFormProps<Water
           placeholder="DRAFT"
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <Label htmlFor={pId}>Position</Label>
           <Select
             value={value.position}
-            onValueChange={(v) => onChange({ ...value, position: v as Position })}
+            onValueChange={(v) =>
+              onChange({ ...value, position: v as Position })
+            }
           >
             <SelectTrigger id={pId}>
               <SelectValue />
@@ -71,7 +76,9 @@ export function WatermarkOptionsForm({ value, onChange }: OptionsFormProps<Water
             min={8}
             max={400}
             value={value.fontSize}
-            onChange={(e) => onChange({ ...value, fontSize: Number(e.target.value) || 60 })}
+            onChange={(e) =>
+              onChange({ ...value, fontSize: Number(e.target.value) || 60 })
+            }
           />
         </div>
         <div>
@@ -83,7 +90,9 @@ export function WatermarkOptionsForm({ value, onChange }: OptionsFormProps<Water
             max={1}
             step={0.05}
             value={value.opacity}
-            onChange={(e) => onChange({ ...value, opacity: Number(e.target.value) || 0.25 })}
+            onChange={(e) =>
+              onChange({ ...value, opacity: Number(e.target.value) || 0.25 })
+            }
           />
         </div>
         <div>
@@ -94,7 +103,9 @@ export function WatermarkOptionsForm({ value, onChange }: OptionsFormProps<Water
             min={-180}
             max={180}
             value={value.rotation}
-            onChange={(e) => onChange({ ...value, rotation: Number(e.target.value) || 0 })}
+            onChange={(e) =>
+              onChange({ ...value, rotation: Number(e.target.value) || 0 })
+            }
           />
         </div>
       </div>
@@ -103,10 +114,12 @@ export function WatermarkOptionsForm({ value, onChange }: OptionsFormProps<Water
         <Input
           id={pgId}
           placeholder="all pages"
-          value={value.pages ?? ''}
-          onChange={(e) => onChange({ ...value, pages: e.target.value || undefined })}
+          value={value.pages ?? ""}
+          onChange={(e) =>
+            onChange({ ...value, pages: e.target.value || undefined })
+          }
         />
       </div>
     </div>
-  );
+  )
 }

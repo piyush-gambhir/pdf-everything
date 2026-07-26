@@ -1,73 +1,69 @@
 ---
 title: Deployment
-description: Deploy the console, Nest API, PDF core worker, and Chromium worker.
+description: Build and deploy the static apps, Nest API, PDF core worker, and Chromium worker.
 ---
 
-## Required services
+## Deployment map
 
-A complete deployment has four independently deployable processes:
+| Surface         | Artifact                     | Recommended boundary                              |
+| --------------- | ---------------------------- | ------------------------------------------------- |
+| Web + docs      | static export                | public CDN or edge assets                         |
+| Console         | static export                | public CDN or edge assets                         |
+| Nest API        | Node.js container            | public HTTPS                                      |
+| PDF core worker | container                    | private service network                           |
+| Chromium worker | standard or Lambda container | private service network or authenticated function |
 
-1. `web` — marketing and Fumadocs documentation static assets;
-2. `console` — PDF tool console static assets;
-3. `backend` — NestJS public API;
-4. execution workers — `pdf-core-worker` and, for HTML/Markdown, `pdf-worker`.
+The console never receives worker credentials. It calls Nest; Nest selects and
+authenticates to the execution worker.
 
-The static sites can live on Cloudflare, a CDN, or any static host. Nest and the
-workers require container or Node.js runtimes.
+## Build the static apps
 
-## Local development
+Website and docs:
+
+```bash
+pnpm --filter @pdf-everything/web build
+```
+
+Console:
+
+```bash
+NEXT_PUBLIC_API_ORIGIN=https://api.example.com \
+NEXT_PUBLIC_SITE_ORIGIN=https://example.com \
+pnpm --filter @pdf-everything/console build
+```
+
+Both outputs use trailing-slash routes. Preserve these path prefixes:
+
+```text
+/pdf-everything/**
+/pdf-everything/console/**
+```
+
+When both apps share an origin, the website routes must not swallow the more
+specific console prefix.
+
+## Build the API and workers
 
 From the repository root:
 
 ```bash
-pnpm install
-pnpm dev
-pnpm --dir workers/pdf-worker dev
+docker build \
+  -f backend/Dockerfile \
+  -t pdf-everything-api:local \
+  .
+
+docker build \
+  -f workers/pdf-core-worker/Dockerfile \
+  -t pdf-core-worker:local \
+  .
+
+docker build \
+  -f workers/pdf-worker/deploy/docker/Dockerfile \
+  -t pdf-worker:local \
+  workers/pdf-worker
 ```
 
-The Chromium worker keeps its own lockfile, so run its development process in a
-second terminal.
-
-The defaults are:
-
-| Service         | URL                              |
-| --------------- | -------------------------------- |
-| Console         | `http://localhost:3000`          |
-| Nest API        | `http://localhost:3001`          |
-| Swagger         | `http://localhost:3001/api/docs` |
-| PDF core worker | `http://localhost:8020`          |
-| Chromium worker | `http://localhost:8010`          |
-
-## Connect Nest to the core worker
-
-Use the same randomly generated secret on both services:
-
-```dotenv
-# pdf-core-worker
-WORKER_API_TOKEN=replace-with-a-long-random-secret
-
-# backend
-PDF_CORE_WORKER_URL=http://pdf-core-worker:8020
-PDF_CORE_WORKER_TOKEN=replace-with-a-long-random-secret
-```
-
-The worker should be reachable from Nest over a private service network and
-should not have a public ingress.
-
-## Connect the console to Nest
-
-Set the public API origin before building the static console:
-
-```bash
-NEXT_PUBLIC_API_ORIGIN=https://api.example.com pnpm --filter @pdf-everything/console build
-```
-
-The value is compiled into the static assets. The Nest API must allow the
-console origin through CORS.
-
-## Images
-
-The release workflow publishes:
+Published images:
 
 ```text
 ghcr.io/piyush-gambhir/pdf-everything-api
@@ -76,20 +72,161 @@ ghcr.io/piyush-gambhir/pdf-everything-pdf-worker
 ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda
 ```
 
-Use an immutable `sha-<commit>` or version tag in production. `latest` tracks
-the newest successful `main` build.
+Pin a `sha-<commit>` tag or digest for production.
 
-## Verification
+## Connect the services
 
-After deployment:
+Generate a different long random secret for each worker group:
+
+```dotenv
+# Nest
+PDF_CORE_WORKER_URL=http://pdf-core-worker:8020
+PDF_CORE_WORKER_TOKEN=core-secret
+PDF_RENDER_WORKER_URL=http://pdf-worker:8010
+PDF_RENDER_WORKER_TOKEN=render-secret
+
+# PDF core worker
+WORKER_API_TOKEN=core-secret
+
+# Chromium worker
+API_TOKEN=render-secret
+```
+
+Expose only Nest publicly. Health and readiness probes:
+
+```text
+GET /api/health
+GET http://pdf-core-worker:8020/ready
+GET http://pdf-worker:8010/ready
+```
+
+## Container platforms
+
+For Cloud Run, ECS/Fargate, Kubernetes, Railway, Render, Fly.io, or a VM:
+
+1. deploy the standard worker images;
+2. keep their service origins private where possible;
+3. allocate about 2 GiB to Chromium initially;
+4. start at concurrency `1` or `2`;
+5. use the platform secret manager for tokens;
+6. use `/health` for liveness and `/ready` for readiness;
+7. keep minimum replicas at zero only when cold starts are acceptable.
+
+The Chromium folder includes a Cloud Run deployment script under
+`deploy/cloudrun`.
+
+## AWS Lambda
+
+### Can the workers run on Lambda?
+
+**The Chromium worker can today.** The repository includes:
+
+- `workers/pdf-worker/deploy/lambda/Dockerfile`;
+- the AWS Lambda Web Adapter;
+- `workers/pdf-worker/scripts/deploy-lambda.sh`;
+- configurable architecture, memory, timeout, Function URL authentication, and
+  ECR push.
+
+Prepare:
 
 ```bash
-curl --fail https://api.example.com/api/docs
+cd workers/pdf-worker
+cp .env.deploy.example .env.deploy.lambda
+```
+
+Set:
+
+```dotenv
+AWS_REGION=ap-south-1
+ECR_REPOSITORY=pdf-everything-pdf-worker
+FUNCTION_NAME=pdf-everything-pdf-worker
+LAMBDA_EXECUTION_ROLE_ARN=arn:aws:iam::<account-id>:role/<lambda-exec-role>
+
+ARCHITECTURE=arm64
+MEMORY_MB=2048
+TIMEOUT_S=60
+FUNCTION_URL_AUTH=AWS_IAM
+```
+
+Deploy:
+
+```bash
+bash scripts/deploy-lambda.sh
+```
+
+The source-build path supports `arm64` or `x86_64`. The published GHCR Lambda
+image is `linux/amd64`; copying that exact image requires an `x86_64` function.
+
+### Registry requirement
+
+Keep public distribution images on GHCR or ECR Public. Lambda itself requires
+the executable image in an ECR repository in the **same AWS Region** as the
+function. The included script creates and pushes to that deployment repository.
+
+Public registry storage and Lambda deployment storage are separate concerns:
+an image may be public for users while your Lambda copy remains private and
+same-region.
+
+### Important limits
+
+Lambda functions have a maximum fifteen-minute execution time, a maximum 10 GB
+uncompressed container image, up to 10 GB writable `/tmp`, and a 6 MB
+synchronous request and response payload limit.
+
+These limits make synchronous Lambda suitable for small HTML/Markdown inputs,
+but risky for general PDF uploads and generated files. For large documents,
+use:
+
+```text
+client -> S3 presigned upload -> Nest/job API -> Lambda
+       -> S3 result -> signed download URL
+```
+
+The current core worker sends base64 document bytes over HTTP, so it should stay
+on a normal container platform until an S3-reference job adapter is added.
+
+### Authentication
+
+Prefer `FUNCTION_URL_AUTH=AWS_IAM` for a private Nest-to-worker call. If you use
+`NONE`, configure `API_TOKEN` and put rate limiting in front of the Function
+URL. Never expose an unauthenticated renderer that can fetch arbitrary remote
+resources.
+
+## Persistent files
+
+Nest currently stores temporary files on local disk. For a single replica,
+mount a durable volume. Before horizontally scaling Nest, implement shared
+object storage so every replica can resolve the same file ID.
+
+Do not treat a container's ephemeral filesystem as durable storage.
+
+## Release and rollout
+
+The publishing workflow creates:
+
+- immutable `sha-<commit>` tags;
+- `latest` from `main`;
+- `edge` from development branches;
+- version tags from Git tags such as `workers-v1.0.0`.
+
+Use an immutable tag, deploy one worker group at a time, verify readiness, run a
+real public API operation, and then shift traffic.
+
+## Production verification
+
+```bash
 curl --fail https://api.example.com/api/health
+curl --fail https://api.example.com/api/docs
 curl --fail http://pdf-core-worker:8020/ready
 curl --fail http://pdf-worker:8010/ready
 ```
 
-Then submit one operation through the public API. A successful public request
-proves the console-facing contract, Nest gateway, private worker network, and
-PDF execution path together.
+Then run:
+
+1. one PDF core operation through Nest;
+2. one HTML or Markdown render through Nest;
+3. one `?output=ref` operation followed by a file download;
+4. one request from the deployed console origin.
+
+That sequence validates the public routes, CORS, gateway, both worker
+connections, temporary storage, and static console configuration.

@@ -1,54 +1,207 @@
-@import "tailwindcss";
-@import "fumadocs-ui/css/neutral.css";
-@import "fumadocs-ui/css/preset.css";
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
 /* Colour tokens + type scale — shared with console/ so the site, the docs and
    the app read as one product. */
-@import "../../styles/foundation.css";
+@import '../../styles/foundation.css';
 
 @custom-variant dark (&:is(.dark *));
 
+:root {
+  --floating-header-top: clamp(0.75rem, 1.5vw, 1.25rem);
+  --floating-header-height: 3.5rem;
+  --floating-header-gap: 1rem;
+  --floating-header-clearance: calc(
+    var(--floating-header-top) + var(--floating-header-height) + var(--floating-header-gap)
+  );
+  --border: transparent;
+  --sidebar-border: transparent;
+  --color-fd-background: var(--background);
+  --color-fd-foreground: var(--foreground);
+  --color-fd-muted: var(--surface-1);
+  --color-fd-muted-foreground: var(--muted-foreground);
+  --color-fd-popover: var(--surface-3);
+  --color-fd-popover-foreground: var(--foreground);
+  --color-fd-card: var(--surface-2);
+  --color-fd-card-foreground: var(--foreground);
+  --color-fd-border: transparent;
+  --color-fd-primary: var(--brand);
+  --color-fd-primary-foreground: var(--brand-foreground);
+  --color-fd-secondary: var(--surface-1);
+  --color-fd-secondary-foreground: var(--foreground);
+  --color-fd-accent: var(--surface-3);
+  --color-fd-accent-foreground: var(--foreground);
+  --color-fd-ring: var(--ring);
+}
+
+.dark {
+  --border: transparent;
+  --sidebar-border: transparent;
+  --color-fd-border: transparent;
+}
+
 @theme inline {
-    --font-sans: var(--font-sans);
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-subtle-foreground: var(--subtle-foreground);
-    --color-surface-1: var(--surface-1);
-    --color-surface-2: var(--surface-2);
-    --color-surface-3: var(--surface-3);
-    --color-primary: var(--primary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-brand: var(--brand);
-    --color-brand-foreground: var(--brand-foreground);
-    --color-brand-soft: var(--brand-soft);
-    --color-ring: var(--ring);
+  --font-sans: var(--font-sans);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-ring: var(--ring);
 }
 
 @layer base {
-    body {
-        @apply bg-background text-foreground;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        text-rendering: optimizeLegibility;
-    }
+  *,
+  ::before,
+  ::after {
+    border-color: transparent !important;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  html {
+    scroll-padding-top: var(--floating-header-clearance);
+  }
+}
+
+@layer components {
+  .marketing-shell {
+    width: 100%;
+    overflow-x: clip;
+  }
+
+  .site-section-inner {
+    width: 100%;
+    padding-inline: clamp(1rem, 2.2vw, 2.5rem);
+  }
+
+  .hero-section {
+    padding-top: calc(var(--floating-header-clearance) + 2rem);
+  }
+
+  .floating-site-header {
+    position: fixed;
+    top: var(--floating-header-top);
+    right: clamp(0.75rem, 1.5vw, 1.25rem);
+    left: clamp(0.75rem, 1.5vw, 1.25rem);
+    z-index: 50;
+    margin-inline: auto;
+  }
+
+  .floating-site-header__bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    min-height: var(--floating-header-height);
+    padding: 0.55rem;
+    padding-left: 0.7rem;
+    border-radius: 1.1rem;
+    background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+    box-shadow:
+      0 0.5rem 2rem rgb(0 0 0 / 10%),
+      0 0.1rem 0.4rem rgb(0 0 0 / 6%);
+    backdrop-filter: blur(1.25rem) saturate(140%);
+  }
+
+  .floating-site-menu {
+    display: grid;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    padding: 0.55rem;
+    border-radius: 1.1rem;
+    background: color-mix(in srgb, var(--surface-2) 94%, transparent);
+    box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 12%);
+    backdrop-filter: blur(1.25rem) saturate(140%);
+  }
+
+  /* Fumadocs normally uses hairlines for hierarchy. This product uses
+       surface levels instead, matching the borderless console. */
+  #nd-sidebar {
+    background: var(--surface-1);
+  }
+
+  #nd-page {
+    background: var(--background);
+  }
+
+  .prose :where(table) {
+    border-collapse: separate;
+    border-spacing: 0 0.25rem;
+  }
+
+  .prose :where(th) {
+    background: var(--surface-1);
+  }
+
+  .prose :where(td) {
+    background: var(--surface-2);
+  }
+
+  .prose :where(th, td) {
+    padding: 0.65rem 0.8rem;
+  }
+
+  .prose :where(th:first-child, td:first-child) {
+    border-radius: 0.625rem 0 0 0.625rem;
+  }
+
+  .prose :where(th:last-child, td:last-child) {
+    border-radius: 0 0.625rem 0.625rem 0;
+  }
+}
+
+@media (min-width: 48rem) {
+  .floating-site-header__bar {
+    grid-template-columns: minmax(9.5rem, 1fr) auto minmax(9.5rem, 1fr);
+  }
+
+  .floating-site-header__bar > nav {
+    justify-self: center;
+  }
+
+  .floating-site-header__bar > :last-child {
+    justify-self: end;
+  }
+}
+
+@media (min-width: 64rem) {
+  .floating-site-header {
+    right: auto;
+    left: 50%;
+    width: 60%;
+    transform: translateX(-50%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    *,
-    ::before,
-    ::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-    }
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Marketing surfaces get a larger display step than the console does — same
    foundation, different density. */
 @utility type-hero {
-    font-size: clamp(2.5rem, 6vw, 4.5rem);
-    line-height: 1.02;
-    letter-spacing: -0.035em;
-    font-weight: 600;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 600;
 }

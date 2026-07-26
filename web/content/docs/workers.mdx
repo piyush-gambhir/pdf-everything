@@ -1,59 +1,122 @@
 ---
 title: Workers
-description: Worker responsibilities, internal endpoints, configuration, and health checks.
+description: Execution boundaries, public images, internal endpoints, scaling, and security.
 ---
+
+Workers are private execution services. External clients and the console should
+normally call Nest, not a worker directly.
+
+## Published images
+
+| Runtime             | Public image                                              | Architectures                  |
+| ------------------- | --------------------------------------------------------- | ------------------------------ |
+| PDF core            | `ghcr.io/piyush-gambhir/pdf-everything-pdf-core-worker`   | image workflow target          |
+| Chromium            | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker`        | `linux/amd64`, `linux/arm64`   |
+| Chromium for Lambda | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda` | `linux/amd64` published target |
+
+Use `sha-<commit>` tags or image digests in production. `latest` follows the
+newest successful `main` build.
 
 ## PDF core worker
 
-The core worker listens on port `8020` by default.
+The core worker owns all seventeen file-based operations and listens on port
+`8020`.
 
-| Variable            | Default    | Description                               |
-| ------------------- | ---------- | ----------------------------------------- |
-| `PORT`              | `8020`     | HTTP listen port                          |
-| `WORKER_API_TOKEN`  | unset      | Bearer token required on execution routes |
-| `MAX_REQUEST_BYTES` | `157286400` | Maximum internal JSON request size       |
+| Method | Path                     | Authentication               | Purpose                          |
+| ------ | ------------------------ | ---------------------------- | -------------------------------- |
+| `GET`  | `/health`                | none                         | Liveness and operation inventory |
+| `GET`  | `/ready`                 | none                         | Readiness                        |
+| `GET`  | `/v1/operations`         | none                         | Supported operation IDs          |
+| `POST` | `/v1/execute/:operation` | bearer token when configured | Private execution protocol       |
 
-Routes:
+Configuration:
 
-| Method | Path                     | Purpose                                   |
-| ------ | ------------------------ | ----------------------------------------- |
-| `GET`  | `/health`                | Liveness and operation inventory          |
-| `GET`  | `/ready`                 | Readiness                                 |
-| `GET`  | `/v1/operations`         | Supported operation IDs                   |
-| `POST` | `/v1/execute/:operation` | Private Nest-to-worker execution protocol |
+| Worker variable     | Nest variable           | Default                 |
+| ------------------- | ----------------------- | ----------------------- |
+| `PORT`              | —                       | `8020`                  |
+| `WORKER_API_TOKEN`  | `PDF_CORE_WORKER_TOKEN` | unset                   |
+| —                   | `PDF_CORE_WORKER_URL`   | `http://127.0.0.1:8020` |
+| `MAX_REQUEST_BYTES` | —                       | `157286400`             |
 
-Configure Nest with:
-
-| Variable                | Default                 | Description                   |
-| ----------------------- | ----------------------- | ----------------------------- |
-| `PDF_CORE_WORKER_URL`   | `http://127.0.0.1:8020` | Core worker origin            |
-| `PDF_CORE_WORKER_TOKEN` | unset                   | Must match `WORKER_API_TOKEN` |
-
-Keep execution routes private even when a bearer token is configured.
+Nest currently sends file bytes as base64 inside the internal JSON protocol.
+Keep this hop on a private, low-latency network. For an object-storage job
+architecture, replace the byte payload with signed input and output references.
 
 ## Chromium worker
 
-The browser worker listens on `8010` and supports:
+The browser worker owns HTML and Markdown rendering on port `8010`:
 
-| Method | Path                  | Purpose            |
-| ------ | --------------------- | ------------------ |
-| `GET`  | `/health`             | Liveness           |
-| `GET`  | `/ready`              | Chromium readiness |
-| `POST` | `/v1/render/html`     | HTML to PDF        |
-| `POST` | `/v1/render/markdown` | Markdown to PDF    |
+| Method | Path                  | Authentication               | Purpose            |
+| ------ | --------------------- | ---------------------------- | ------------------ |
+| `GET`  | `/health`             | none                         | Liveness           |
+| `GET`  | `/ready`              | none                         | Chromium readiness |
+| `GET`  | `/v1/templates`       | none                         | Markdown templates |
+| `POST` | `/v1/render/html`     | bearer token when configured | HTML to PDF        |
+| `POST` | `/v1/render/markdown` | bearer token when configured | Markdown to PDF    |
 
-See the repository's worker deployment guide for image tags, Lambda packaging,
-and platform-specific configuration.
+`API_TOKEN` on the worker must match `PDF_RENDER_WORKER_TOKEN` on Nest.
+`PDF_RENDER_WORKER_URL` selects the worker origin.
 
-Configure Nest with `PDF_RENDER_WORKER_URL` and
-`PDF_RENDER_WORKER_TOKEN`. The token must match the browser worker's
-`API_TOKEN`.
+HTML and Markdown share one image because both operations use the same browser,
+fonts, renderer, security boundary, and scaling profile. They can still be
+deployed as two services when traffic patterns differ.
+
+## Direct Docker use
+
+```bash
+docker run --rm \
+  --publish 127.0.0.1:8010:8010 \
+  --env API_TOKEN=replace-with-a-long-random-value \
+  ghcr.io/piyush-gambhir/pdf-everything-pdf-worker:latest
+```
+
+Verify:
+
+```bash
+curl --fail http://127.0.0.1:8010/ready
+```
 
 ## Scaling
 
-Scale the workers independently:
+- Begin with one or two concurrent jobs per worker replica.
+- Allocate about 2 GiB to Chromium first, then tune from measurements.
+- Scale Nest for public HTTP traffic; scale workers for document CPU and memory.
+- Set explicit request-size and execution timeouts at the gateway.
+- Keep zero minimum replicas when cold starts are acceptable.
+- Use a queue and object storage for long, bursty, or large-file workloads.
 
-- Core operations are CPU and memory bound; begin with low concurrency.
-- Chromium starts a browser per request; begin at concurrency `1` or `2`.
-- Keep Nest lightweight and scale it for HTTP traffic rather than PDF CPU.
-- Use immutable image tags or digests for production rollouts.
+## Security boundary
+
+Treat documents and HTML as untrusted:
+
+- keep execution routes private or authenticated;
+- do not put worker tokens in the console;
+- block access to cloud metadata and sensitive private networks;
+- avoid mounting cloud credentials, host paths, or a Docker socket;
+- rate-limit public routes and cap input size;
+- do not log raw documents;
+- use platform isolation because Chromium runs with `--no-sandbox` inside the
+  container.
+
+The current Chromium worker allows remote images, fonts, and stylesheets. Add an
+egress allowlist or proxy before accepting arbitrary multi-tenant HTML.
+
+## Lambda suitability
+
+The repository already includes a Lambda Web Adapter image and deployment
+script for the Chromium worker. Lambda is practical for small HTML/Markdown
+jobs that finish well inside the timeout and payload limits.
+
+The current PDF core protocol is not a good synchronous Lambda fit because
+base64 file payloads can quickly exceed Lambda's request or response limit. To
+run core operations on Lambda reliably:
+
+1. upload inputs to S3;
+2. invoke Lambda with object keys and job metadata;
+3. write outputs back to S3;
+4. return a job or result reference through Nest.
+
+That asynchronous reference-based architecture is a future adapter, not the
+current HTTP byte protocol.
+
+See [Deployment](/docs/deployment#aws-lambda) for the complete decision.

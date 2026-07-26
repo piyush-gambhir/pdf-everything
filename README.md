@@ -1,6 +1,7 @@
 # pdf-everything
 
-A unified PDF console + REST API. ~60 PDF features (merge, split, compress, convert, OCR, sign, etc.) in one place. The frontend consumes the same APIs that external clients use.
+An open-source PDF console, REST API, and worker stack. Nineteen operations are
+available through the visual console and the same versioned public endpoints.
 
 ## Stack
 
@@ -30,10 +31,25 @@ workers/
 
 ```bash
 pnpm install
-pnpm dev          # backend :3001, console :3000, core worker :8020
+pnpm dev
+
+# Chromium worker has an independent lockfile
+cd workers/pdf-worker
+corepack pnpm install
+corepack pnpm dev
 ```
 
-Swagger UI: http://localhost:3001/api/docs
+| Surface         | Local URL                                     |
+| --------------- | --------------------------------------------- |
+| Console         | http://localhost:3000/pdf-everything/console/ |
+| Nest API        | http://localhost:3001/api                     |
+| Swagger UI      | http://localhost:3001/api/docs                |
+| Web + docs      | http://localhost:3002/pdf-everything/         |
+| PDF core worker | http://localhost:8020                         |
+| Chromium worker | http://localhost:8010                         |
+
+Read the [documentation](web/content/docs/index.mdx) or the complete
+[deployment guide](web/content/docs/deployment.mdx).
 
 ## Verify
 
