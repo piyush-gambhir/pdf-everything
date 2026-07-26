@@ -9,13 +9,16 @@ endpoints any external caller would.
 
 ## The pieces
 
-| Piece | What it is |
-| --- | --- |
-| **Console** | The browser UI for every tool. |
-| **API** | A REST service; the console's only backend. |
-| **Workers** | Standalone renderers (HTML → PDF, Markdown → PDF). |
+| Piece               | What it is                                                         |
+| ------------------- | ------------------------------------------------------------------ |
+| **Console**         | The statically deployed Next.js UI for every tool.                 |
+| **Nest API**        | The public REST contract used by the console and external clients. |
+| **PDF core worker** | Executes the 17 existing PDF, image, text, and form operations.    |
+| **Browser worker**  | Executes HTML → PDF and Markdown → PDF through Chromium.           |
 
 ## Start here
 
 - [Quickstart](/docs/quickstart) — run your first operation over HTTP.
 - [Tools](/docs/tools) — what each tool does and what it accepts.
+- [Architecture](/docs/architecture) — how the console, API, and workers fit together.
+- [Deployment](/docs/deployment) — run the complete stack.

@@ -1,4 +1,4 @@
-name: Publish worker images
+name: Publish runtime images
 
 on:
   workflow_dispatch:
@@ -10,6 +10,10 @@ on:
       - 'workers-v*'
     paths:
       - 'workers/**'
+      - 'backend/**'
+      - 'types/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '.github/workflows/workers-ci.yml'
       - '.github/workflows/publish-worker-images.yml'
 
@@ -25,11 +29,113 @@ concurrency:
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/pdf-everything-pdf-worker
+  CORE_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/pdf-everything-pdf-core-worker
+  API_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/pdf-everything-api
 
 jobs:
   verify:
-    name: Verify pdf-worker
+    name: Verify API and workers
     uses: ./.github/workflows/workers-ci.yml
+
+  publish-gateway:
+    name: Publish Nest API gateway
+    needs: verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.API_IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-,format=long
+            type=raw,value=edge,enable=${{ github.ref_type == 'branch' && github.ref_name != 'main' }}
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
+            type=match,pattern=workers-v(.*),group=1
+
+      - name: Build and publish
+        id: publish
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=pdf-everything-api
+          cache-to: type=gha,mode=max,scope=pdf-everything-api
+
+      - name: Attest image
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.API_IMAGE_NAME }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true
+
+  publish-core:
+    name: Publish pdf-core-worker
+    needs: verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.CORE_IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-,format=long
+            type=raw,value=edge,enable=${{ github.ref_type == 'branch' && github.ref_name != 'main' }}
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
+            type=match,pattern=workers-v(.*),group=1
+
+      - name: Build and publish
+        id: publish
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: workers/pdf-core-worker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=pdf-core-worker
+          cache-to: type=gha,mode=max,scope=pdf-core-worker
+
+      - name: Attest image
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.CORE_IMAGE_NAME }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true
 
   publish-standard:
     name: Publish pdf-worker

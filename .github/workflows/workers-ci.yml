@@ -1,10 +1,14 @@
-name: Worker CI
+name: Runtime CI
 
 on:
   workflow_call:
   pull_request:
     paths:
       - 'workers/**'
+      - 'backend/**'
+      - 'types/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '.github/workflows/workers-ci.yml'
       - '.github/workflows/publish-worker-images.yml'
 
@@ -16,8 +20,120 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  verify-gateway:
+    name: Verify Nest API gateway
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.15.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and test
+        run: |
+          pnpm --filter @pdf-everything/backend build
+          pnpm --filter @pdf-everything/backend test
+
+      - name: Build image
+        run: |
+          docker build \
+            --file backend/Dockerfile \
+            --tag pdf-everything-api:ci \
+            .
+
+      - name: Smoke-test image
+        run: |
+          cleanup() {
+            docker rm --force pdf-everything-api-ci >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach --name pdf-everything-api-ci \
+            --publish 127.0.0.1:3001:3001 \
+            pdf-everything-api:ci
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3001/api/health >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker logs pdf-everything-api-ci
+              exit 1
+            fi
+            sleep 1
+          done
+
+  verify-core:
+    name: Verify pdf-core-worker
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.15.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter @pdf-everything/pdf-core-worker build
+
+      - name: Run tests
+        run: pnpm --filter @pdf-everything/pdf-core-worker test
+
+      - name: Build image
+        run: |
+          docker build \
+            --file workers/pdf-core-worker/Dockerfile \
+            --tag pdf-core-worker:ci \
+            .
+
+      - name: Smoke-test image
+        run: |
+          cleanup() {
+            docker rm --force pdf-core-worker-ci >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach --name pdf-core-worker-ci \
+            --publish 127.0.0.1:8020:8020 \
+            pdf-core-worker:ci
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8020/ready >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker logs pdf-core-worker-ci
+              exit 1
+            fi
+            sleep 1
+          done
+
+          test "$(
+            curl --silent http://127.0.0.1:8020/v1/operations \
+              | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(String(JSON.parse(s).operations.length)))"
+          )" = "17"
+
   verify:
-    name: Verify pdf-worker
+    name: Verify Chromium pdf-worker
     runs-on: ubuntu-latest
 
     steps:

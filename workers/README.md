@@ -1,27 +1,28 @@
 # workers/
 
-Deployable runtime services that are intentionally kept outside the root pnpm
-workspace and Turbo graph.
+Deployable runtime services grouped by dependency and scaling profile.
 
-## Current worker
+## Current workers
 
-| Worker        | Operations                            | Port | Standard image                                     | Lambda image                                              |
-| ------------- | ------------------------------------- | ---: | -------------------------------------------------- | --------------------------------------------------------- |
-| `pdf-worker/` | `html-to-pdf`, `markdown-to-pdf` only | 8010 | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker` | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda` |
+| Worker             | Operations                               | Port | Standard image                                          |
+| ------------------ | ---------------------------------------- | ---: | ------------------------------------------------------- |
+| `pdf-core-worker/` | 17 PDF, image, text, and form operations | 8020 | `ghcr.io/piyush-gambhir/pdf-everything-pdf-core-worker` |
+| `pdf-worker/`      | `html-to-pdf`, `markdown-to-pdf`         | 8010 | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker`      |
 
-Both operations use one Chromium installation and one HTML-to-PDF rendering
-core. Markdown is converted to templated HTML before entering that same core.
-The supported operation list is deliberately explicit; unrelated PDF
-operations should not be added merely because this worker exists.
+`pdf-core-worker` participates in the root pnpm workspace so it can share the
+public Zod contracts with Nest and the console. Nest calls its private internal
+protocol; the public endpoint paths and responses remain owned by Nest.
+
+`pdf-worker` remains independently packaged because Chromium has a distinct
+runtime and Lambda target. Markdown is converted to HTML before entering the
+same renderer.
 
 ## Independence
 
-`pdf-worker` owns its `package.json`, lockfile, tests and deployment targets.
-Its folder can be used directly as a Docker build context and deployed without
-the console or NestJS backend.
-
-It is not yet called by the backend or console. Until adapters are added, call
-the worker's HTTP API directly.
+Both workers own their execution implementations and tests. The core worker
+uses the repository root as its Docker build context because it shares
+`@pdf-everything/types`; the Chromium worker folder remains a standalone build
+context.
 
 ## Image targets
 
@@ -33,6 +34,11 @@ the worker's HTTP API directly.
 Build locally from the repository root:
 
 ```bash
+docker build \
+  -f workers/pdf-core-worker/Dockerfile \
+  -t pdf-core-worker:local \
+  .
+
 docker build \
   -f workers/pdf-worker/deploy/docker/Dockerfile \
   -t pdf-worker:local \
@@ -48,10 +54,9 @@ docker build \
 
 The root workflows are authoritative:
 
-- `.github/workflows/workers-ci.yml` installs, builds and tests the package,
-  renders both supported input types in its standard image, and verifies the
-  Lambda image builds.
-- `.github/workflows/publish-worker-images.yml` publishes the standard and
+- `.github/workflows/workers-ci.yml` tests both workers, smoke-tests both
+  standard images, renders both browser inputs, and verifies the Lambda image.
+- `.github/workflows/publish-worker-images.yml` publishes the core, browser, and
   Lambda images with OCI metadata and build attestations.
 
 Every publishing run creates an immutable `sha-<commit>` tag. `main` also gets
@@ -59,7 +64,9 @@ Every publishing run creates an immutable `sha-<commit>` tag. `main` also gets
 the corresponding `1.0.0` image tag.
 
 The earlier per-operation images remain as historical artifacts but are
-superseded by `pdf-worker`.
+superseded by `pdf-worker`. For full deployment instructions, including Docker,
+Cloud Run, Lambda, and generic container platforms, see
+[`DEPLOYMENT.md`](DEPLOYMENT.md).
 
 ## Runtime configuration
 

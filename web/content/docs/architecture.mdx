@@ -1,0 +1,68 @@
+---
+title: Architecture
+description: The public API gateway, execution workers, console, and trust boundaries.
+---
+
+The system separates its public API contract from PDF execution:
+
+```text
+Next.js console ───┐
+                   ├─> NestJS public API ─┬─> PDF core worker
+External clients ──┘                      └─> Chromium render worker
+```
+
+## Next.js console
+
+The console is a static export. It contains no PDF implementation and no API
+routes. At build time, `NEXT_PUBLIC_API_ORIGIN` selects the Nest API origin.
+Every UI operation uses the same public endpoint available to external clients.
+
+## NestJS API
+
+Nest owns the stable `/api/v1/**` contract:
+
+- multipart uploads and stored file references;
+- request validation and problem responses;
+- public authentication, quotas, and rate limits when configured;
+- file persistence and multi-file result metadata;
+- routing requests to the correct execution worker;
+- streaming the final response to the caller.
+
+Nest does not import `pdf-lib`, `pdfjs-dist`, `sharp`, or Chromium. A worker
+failure therefore cannot load native PDF dependencies into the public API
+process.
+
+## PDF core worker
+
+`pdf-core-worker` owns the 17 operations listed on the [Tools](/docs/tools)
+page. It groups them because they share the same Node.js, `pdf-lib`,
+`pdfjs-dist`, and `sharp` execution profile.
+
+Nest calls its private `POST /v1/execute/:operation` protocol. Requests and
+responses are internal implementation details; external callers should use the
+Nest API.
+
+## Chromium worker
+
+`pdf-worker` owns HTML and Markdown rendering. Both routes share one Chromium
+renderer:
+
+- `POST /v1/render/html`
+- `POST /v1/render/markdown`
+
+It remains a separate worker because Chromium has a much larger image, different
+security boundary, cold starts, memory profile, and scaling behavior.
+Nest exposes those operations publicly at `/api/v1/render/html` and
+`/api/v1/render/markdown`; the console uses those gateway routes.
+
+## Future worker groups
+
+Add a new worker only when operations share a distinct runtime:
+
+- OCR: Tesseract and image preprocessing;
+- Office conversion: LibreOffice;
+- optimization: Ghostscript or qpdf;
+- signing/security: native cryptography or isolated key access.
+
+Do not create one service per operation. Group by dependencies, resource
+profile, and security boundary.

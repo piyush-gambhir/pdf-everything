@@ -1,0 +1,95 @@
+---
+title: Deployment
+description: Deploy the console, Nest API, PDF core worker, and Chromium worker.
+---
+
+## Required services
+
+A complete deployment has four independently deployable processes:
+
+1. `web` — marketing and Fumadocs documentation static assets;
+2. `console` — PDF tool console static assets;
+3. `backend` — NestJS public API;
+4. execution workers — `pdf-core-worker` and, for HTML/Markdown, `pdf-worker`.
+
+The static sites can live on Cloudflare, a CDN, or any static host. Nest and the
+workers require container or Node.js runtimes.
+
+## Local development
+
+From the repository root:
+
+```bash
+pnpm install
+pnpm dev
+pnpm --dir workers/pdf-worker dev
+```
+
+The Chromium worker keeps its own lockfile, so run its development process in a
+second terminal.
+
+The defaults are:
+
+| Service         | URL                              |
+| --------------- | -------------------------------- |
+| Console         | `http://localhost:3000`          |
+| Nest API        | `http://localhost:3001`          |
+| Swagger         | `http://localhost:3001/api/docs` |
+| PDF core worker | `http://localhost:8020`          |
+| Chromium worker | `http://localhost:8010`          |
+
+## Connect Nest to the core worker
+
+Use the same randomly generated secret on both services:
+
+```dotenv
+# pdf-core-worker
+WORKER_API_TOKEN=replace-with-a-long-random-secret
+
+# backend
+PDF_CORE_WORKER_URL=http://pdf-core-worker:8020
+PDF_CORE_WORKER_TOKEN=replace-with-a-long-random-secret
+```
+
+The worker should be reachable from Nest over a private service network and
+should not have a public ingress.
+
+## Connect the console to Nest
+
+Set the public API origin before building the static console:
+
+```bash
+NEXT_PUBLIC_API_ORIGIN=https://api.example.com pnpm --filter @pdf-everything/console build
+```
+
+The value is compiled into the static assets. The Nest API must allow the
+console origin through CORS.
+
+## Images
+
+The release workflow publishes:
+
+```text
+ghcr.io/piyush-gambhir/pdf-everything-api
+ghcr.io/piyush-gambhir/pdf-everything-pdf-core-worker
+ghcr.io/piyush-gambhir/pdf-everything-pdf-worker
+ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda
+```
+
+Use an immutable `sha-<commit>` or version tag in production. `latest` tracks
+the newest successful `main` build.
+
+## Verification
+
+After deployment:
+
+```bash
+curl --fail https://api.example.com/api/docs
+curl --fail https://api.example.com/api/health
+curl --fail http://pdf-core-worker:8020/ready
+curl --fail http://pdf-worker:8010/ready
+```
+
+Then submit one operation through the public API. A successful public request
+proves the console-facing contract, Nest gateway, private worker network, and
+PDF execution path together.

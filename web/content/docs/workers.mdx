@@ -1,0 +1,59 @@
+---
+title: Workers
+description: Worker responsibilities, internal endpoints, configuration, and health checks.
+---
+
+## PDF core worker
+
+The core worker listens on port `8020` by default.
+
+| Variable            | Default    | Description                               |
+| ------------------- | ---------- | ----------------------------------------- |
+| `PORT`              | `8020`     | HTTP listen port                          |
+| `WORKER_API_TOKEN`  | unset      | Bearer token required on execution routes |
+| `MAX_REQUEST_BYTES` | `157286400` | Maximum internal JSON request size       |
+
+Routes:
+
+| Method | Path                     | Purpose                                   |
+| ------ | ------------------------ | ----------------------------------------- |
+| `GET`  | `/health`                | Liveness and operation inventory          |
+| `GET`  | `/ready`                 | Readiness                                 |
+| `GET`  | `/v1/operations`         | Supported operation IDs                   |
+| `POST` | `/v1/execute/:operation` | Private Nest-to-worker execution protocol |
+
+Configure Nest with:
+
+| Variable                | Default                 | Description                   |
+| ----------------------- | ----------------------- | ----------------------------- |
+| `PDF_CORE_WORKER_URL`   | `http://127.0.0.1:8020` | Core worker origin            |
+| `PDF_CORE_WORKER_TOKEN` | unset                   | Must match `WORKER_API_TOKEN` |
+
+Keep execution routes private even when a bearer token is configured.
+
+## Chromium worker
+
+The browser worker listens on `8010` and supports:
+
+| Method | Path                  | Purpose            |
+| ------ | --------------------- | ------------------ |
+| `GET`  | `/health`             | Liveness           |
+| `GET`  | `/ready`              | Chromium readiness |
+| `POST` | `/v1/render/html`     | HTML to PDF        |
+| `POST` | `/v1/render/markdown` | Markdown to PDF    |
+
+See the repository's worker deployment guide for image tags, Lambda packaging,
+and platform-specific configuration.
+
+Configure Nest with `PDF_RENDER_WORKER_URL` and
+`PDF_RENDER_WORKER_TOKEN`. The token must match the browser worker's
+`API_TOKEN`.
+
+## Scaling
+
+Scale the workers independently:
+
+- Core operations are CPU and memory bound; begin with low concurrency.
+- Chromium starts a browser per request; begin at concurrency `1` or `2`.
+- Keep Nest lightweight and scale it for HTTP traffic rather than PDF CPU.
+- Use immutable image tags or digests for production rollouts.

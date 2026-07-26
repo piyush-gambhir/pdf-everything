@@ -100,6 +100,12 @@ The same server is packaged in two forms:
 - `deploy/docker/Dockerfile` for container platforms.
 - `deploy/lambda/Dockerfile` with the AWS Lambda Web Adapter.
 
+These are two package targets for one worker, not separate HTML and Markdown
+services. The standard image serves both operation-specific routes. See the
+complete [deployment and migration guide](../DEPLOYMENT.md) for Docker, Cloud
+Run, Lambda, Kubernetes-style platforms, image tags, authentication, scaling,
+and the old-to-new endpoint map.
+
 For Lambda:
 
 ```bash

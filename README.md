@@ -6,8 +6,9 @@ A unified PDF console + REST API. ~60 PDF features (merge, split, compress, conv
 
 - **Monorepo**: pnpm workspaces + Turborepo
 - **Console**: Next.js + shadcn/ui
-- **Backend**: NestJS (REST + OpenAPI/Swagger), includes the PDF core
-- **PDF core**: pure TypeScript feature implementations (`backend/src/pdf-core`)
+- **Backend**: thin NestJS REST gateway + OpenAPI/Swagger
+- **PDF core worker**: 17 `pdf-lib`/`pdfjs-dist`/`sharp` operations
+- **Browser worker**: HTML/Markdown rendering through Chromium
 
 ## Layout
 
@@ -15,23 +16,21 @@ A unified PDF console + REST API. ~60 PDF features (merge, split, compress, conv
 console/              Next.js app (the PDF tool console)
 web/                  Marketing site + Fumadocs documentation
 backend/              NestJS API
-├── src/pdf-core/     Pure PDF feature implementations
-└── tests/            pdf-core test suite
 types/                Zod schemas shared by console + backend
 workers/
+├── pdf-core-worker/  Existing PDF/image/text/form operations
 └── pdf-worker/       HTML/Markdown -> PDF (shared headless Chrome runtime)
 ```
 
-> **`pdf-worker` is independently deployable.** It owns its dependencies,
-> tests, standard Docker image and Lambda image. It currently supports only
-> `html-to-pdf` and `markdown-to-pdf` through one shared Chromium renderer.
-> See [`workers/README.md`](workers/README.md).
+> **PDF execution lives in workers.** Nest owns the stable public API, file
+> storage, validation, and orchestration; the static Next.js console calls that
+> same API. See [`workers/README.md`](workers/README.md).
 
 ## Develop
 
 ```bash
 pnpm install
-pnpm dev          # backend on :3001, console on :3000
+pnpm dev          # backend :3001, console :3000, core worker :8020
 ```
 
 Swagger UI: http://localhost:3001/api/docs
