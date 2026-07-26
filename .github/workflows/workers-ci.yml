@@ -41,6 +41,7 @@ jobs:
 
       - name: Build and test
         run: |
+          pnpm --filter @pdf-everything/types build
           pnpm --filter @pdf-everything/backend build
           pnpm --filter @pdf-everything/backend test
 
@@ -93,7 +94,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm --filter @pdf-everything/pdf-core-worker build
+        run: |
+          pnpm --filter @pdf-everything/types build
+          pnpm --filter @pdf-everything/pdf-core-worker build
 
       - name: Run tests
         run: pnpm --filter @pdf-everything/pdf-core-worker test
