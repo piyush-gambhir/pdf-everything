@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { removePages } from '../../../pdf-core/index.js';
+import { removePages } from '../../../workers/pdf-core-worker.client.js';
 import { RemovePagesOptionsSchema } from '@pdf-everything/types';
 import type { Response } from 'express';
 import { FilesService } from '../../../files/files.service.js';

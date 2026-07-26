@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { flattenForm } from '../../../pdf-core/index.js';
+import { flattenForm } from '../../../workers/pdf-core-worker.client.js';
 import type { Response } from 'express';
 import { FilesService } from '../../../files/files.service.js';
 import { loadInputs } from '../../../common/load-inputs.js';

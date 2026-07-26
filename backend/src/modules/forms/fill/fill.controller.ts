@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { fillForm } from '../../../pdf-core/index.js';
+import { fillForm } from '../../../workers/pdf-core-worker.client.js';
 import { FormsFillOptionsSchema } from '@pdf-everything/types';
 import type { Response } from 'express';
 import { FilesService } from '../../../files/files.service.js';
@@ -28,7 +28,8 @@ export class FormsFillController {
   @HttpCode(200)
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({
-    summary: 'Fill a PDF form. Returns the filled PDF; missing fields go in X-Missing-Fields header.',
+    summary:
+      'Fill a PDF form. Returns the filled PDF; missing fields go in X-Missing-Fields header.',
   })
   @ApiConsumes('multipart/form-data', 'application/json')
   @ApiBody({

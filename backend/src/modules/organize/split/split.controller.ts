@@ -1,14 +1,7 @@
-import {
-  Body,
-  Controller,
-  HttpCode,
-  Post,
-  UploadedFile,
-  UseInterceptors,
-} from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { splitPdf } from '../../../pdf-core/index.js';
+import { splitPdf } from '../../../workers/pdf-core-worker.client.js';
 import { SplitOptionsSchema } from '@pdf-everything/types';
 import { FilesService } from '../../../files/files.service.js';
 import { loadInputs } from '../../../common/load-inputs.js';

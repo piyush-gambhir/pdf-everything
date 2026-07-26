@@ -6,3 +6,4 @@ export * from './forms.js';
 export * from './file.js';
 export * from './error.js';
 export * from './page-range.js';
+export * from './render.js';

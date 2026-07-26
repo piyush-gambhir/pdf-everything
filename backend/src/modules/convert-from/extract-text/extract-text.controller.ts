@@ -1,14 +1,7 @@
-import {
-  Body,
-  Controller,
-  HttpCode,
-  Post,
-  UploadedFile,
-  UseInterceptors,
-} from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { extractText } from '../../../pdf-core/index.js';
+import { extractText } from '../../../workers/pdf-core-worker.client.js';
 import { ExtractTextOptionsSchema } from '@pdf-everything/types';
 import type { Response } from 'express';
 import { Res } from '@nestjs/common';

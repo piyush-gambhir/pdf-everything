@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { imagesToPdf } from '../../../pdf-core/index.js';
+import { imagesToPdf } from '../../../workers/pdf-core-worker.client.js';
 import { ImagesToPdfOptionsSchema } from '@pdf-everything/types';
 import type { Response } from 'express';
 import { FilesService } from '../../../files/files.service.js';
@@ -26,7 +26,9 @@ export class ImagesToPdfController {
   @Post('images-to-pdf')
   @HttpCode(200)
   @UseInterceptors(FilesInterceptor('files', 100))
-  @ApiOperation({ summary: 'Convert one or more images (JPG/PNG/TIFF/HEIC/WebP) into a single PDF' })
+  @ApiOperation({
+    summary: 'Convert one or more images (JPG/PNG/TIFF/HEIC/WebP) into a single PDF',
+  })
   @ApiConsumes('multipart/form-data', 'application/json')
   @ApiBody({
     schema: {

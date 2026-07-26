@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { watermarkPdf } from '../../../pdf-core/index.js';
+import { watermarkPdf } from '../../../workers/pdf-core-worker.client.js';
 import { WatermarkOptionsSchema } from '@pdf-everything/types';
 import type { Response } from 'express';
 import { FilesService } from '../../../files/files.service.js';
@@ -36,7 +36,8 @@ export class WatermarkController {
         file: { type: 'string', format: 'binary' },
         options: {
           type: 'string',
-          description: 'JSON WatermarkOptions: { text, position, fontSize, opacity, rotation, pages? }',
+          description:
+            'JSON WatermarkOptions: { text, position, fontSize, opacity, rotation, pages? }',
         },
       },
     },

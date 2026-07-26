@@ -1,7 +1,8 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ZodError } from 'zod';
-import { PdfCoreError } from '../../pdf-core/index.js';
+import { PdfCoreWorkerError } from '../../workers/pdf-core-worker.client.js';
+import { PdfRenderWorkerError } from '../../workers/pdf-render-worker.client.js';
 import type { Problem } from '@pdf-everything/types';
 
 @Catch()
@@ -18,10 +19,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.logger.error(exception);
     }
 
-    res
-      .status(problem.status)
-      .setHeader('Content-Type', 'application/problem+json')
-      .json(problem);
+    res.status(problem.status).setHeader('Content-Type', 'application/problem+json').json(problem);
   }
 }
 
@@ -36,11 +34,11 @@ function toProblem(exception: unknown, instance: string): Problem {
       errors: exception.issues,
     };
   }
-  if (exception instanceof PdfCoreError) {
+  if (exception instanceof PdfCoreWorkerError || exception instanceof PdfRenderWorkerError) {
     return {
       type: 'about:blank',
       title: exception.code,
-      status: 422,
+      status: exception.status,
       detail: exception.message,
       instance,
     };
@@ -50,7 +48,7 @@ function toProblem(exception: unknown, instance: string): Problem {
     const detail =
       typeof res === 'string'
         ? res
-        : ((res as Record<string, unknown>).message as string | undefined) ?? exception.message;
+        : (((res as Record<string, unknown>).message as string | undefined) ?? exception.message);
     return {
       type: 'about:blank',
       title: exception.name,

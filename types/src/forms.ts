@@ -1,10 +1,6 @@
 import { z } from 'zod';
 
-export const FormFieldValueSchema = z.union([
-  z.string(),
-  z.boolean(),
-  z.array(z.string()),
-]);
+export const FormFieldValueSchema = z.union([z.string(), z.boolean(), z.array(z.string())]);
 export type FormFieldValue = z.infer<typeof FormFieldValueSchema>;
 
 export const FormsFillOptionsSchema = z.object({

@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { rotatePdf } from '../../../pdf-core/index.js';
+import { rotatePdf } from '../../../workers/pdf-core-worker.client.js';
 import { RotateOptionsSchema } from '@pdf-everything/types';
 import type { Response } from 'express';
 import { FilesService } from '../../../files/files.service.js';

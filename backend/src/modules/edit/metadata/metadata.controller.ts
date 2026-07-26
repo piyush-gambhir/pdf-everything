@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { editMetadata } from '../../../pdf-core/index.js';
+import { editMetadata } from '../../../workers/pdf-core-worker.client.js';
 import { MetadataOptionsSchema } from '@pdf-everything/types';
 import type { Response } from 'express';
 import { FilesService } from '../../../files/files.service.js';
@@ -27,7 +27,9 @@ export class MetadataController {
   @Post('metadata')
   @HttpCode(200)
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Edit PDF metadata (title, author, subject, keywords, creator, producer)' })
+  @ApiOperation({
+    summary: 'Edit PDF metadata (title, author, subject, keywords, creator, producer)',
+  })
   @ApiConsumes('multipart/form-data', 'application/json')
   @ApiBody({
     schema: {

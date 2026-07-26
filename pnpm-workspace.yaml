@@ -1,8 +1,9 @@
 packages:
-  - "console"
-  - "web"
-  - "backend"
-  - "types"
+  - 'console'
+  - 'web'
+  - 'backend'
+  - 'types'
+  - 'workers/pdf-core-worker'
 
 # Next 16.2.11 pins this newly published transitive dependency. Exempt only
 # the reviewed version so the security patch can ship without weakening the

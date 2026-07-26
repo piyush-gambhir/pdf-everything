@@ -6,7 +6,11 @@ import { STORAGE, type StorageService } from './storage/storage.service.js';
 export class FilesService {
   constructor(@Inject(STORAGE) private readonly storage: StorageService) {}
 
-  async upload(file: { buffer: Buffer; originalname: string; mimetype: string }): Promise<FileMeta> {
+  async upload(file: {
+    buffer: Buffer;
+    originalname: string;
+    mimetype: string;
+  }): Promise<FileMeta> {
     return this.storage.put({
       buffer: file.buffer,
       originalName: file.originalname,

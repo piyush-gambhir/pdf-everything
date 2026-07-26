@@ -6,8 +6,11 @@ import { ConvertToModule } from './modules/convert-to/convert-to.module.js';
 import { ConvertFromModule } from './modules/convert-from/convert-from.module.js';
 import { MiscModule } from './modules/misc/misc.module.js';
 import { FormsModule } from './modules/forms/forms.module.js';
+import { RenderModule } from './modules/render/render.module.js';
+import { HealthController } from './health.controller.js';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     FilesModule,
     OrganizeModule,
@@ -16,6 +19,7 @@ import { FormsModule } from './modules/forms/forms.module.js';
     ConvertFromModule,
     MiscModule,
     FormsModule,
+    RenderModule,
   ],
 })
 export class AppModule {}
