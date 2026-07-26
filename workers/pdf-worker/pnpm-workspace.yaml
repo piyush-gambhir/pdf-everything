@@ -1,0 +1,4 @@
+# Keep this worker independent from the repository's root pnpm workspace.
+# esbuild (pulled in by tsx) needs its platform-specific postinstall.
+allowBuilds:
+  esbuild: true

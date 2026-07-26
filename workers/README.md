@@ -1,38 +1,74 @@
 # workers/
 
-Standalone rendering workers. Each subfolder is one worker: a self-contained
-service with its own `package.json`, lockfile, Dockerfile, and deploy targets.
+Deployable runtime services that are intentionally kept outside the root pnpm
+workspace and Turbo graph.
 
-| Worker | Does | Runtime |
-| --- | --- | --- |
-| `html-to-pdf/` | HTML → PDF | headless Chrome (puppeteer-core) |
-| `markdown-to-pdf/` | Markdown → HTML → PDF | headless Chrome (puppeteer-core) |
+## Current worker
 
-## Why a single `workers/` folder
+| Worker        | Operations                            | Port | Standard image                                     | Lambda image                                              |
+| ------------- | ------------------------------------- | ---: | -------------------------------------------------- | --------------------------------------------------------- |
+| `pdf-worker/` | `html-to-pdf`, `markdown-to-pdf` only | 8010 | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker` | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda` |
 
-One folder per worker in one repo, rather than a repo per worker — the workers
-share most of their rendering logic and deploy the same way, so keeping them
-together makes them far easier to maintain, review, and release consistently.
+Both operations use one Chromium installation and one HTML-to-PDF rendering
+core. Markdown is converted to templated HTML before entering that same core.
+The supported operation list is deliberately explicit; unrelated PDF
+operations should not be added merely because this worker exists.
 
-## Current status: co-located, NOT integrated
+## Independence
 
-These were moved in **as-is** from their former standalone repos. Deliberately:
+`pdf-worker` owns its `package.json`, lockfile, tests and deployment targets.
+Its folder can be used directly as a Docker build context and deployed without
+the console or NestJS backend.
 
-- **Excluded from the pnpm workspace and Turbo pipeline** (see `pnpm-workspace.yaml`).
-  They keep their own dependencies and are built/tested independently.
-- **Their nested `.github/workflows/` are inert.** GitHub only reads workflows from
-  `.github/workflows/` at the *repository root*. To restore automated Docker Hub
-  publishing, those workflows must move to the root, with `context:`/`file:` pointed
-  at the worker subfolder and distinct tag triggers per worker (e.g. `html-v*`, `md-v*`).
-  The Docker Hub secrets (`DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`) also need adding
-  to this repo.
-- **Local deploy scripts still work** — they resolve paths relative to their own
-  folder and use your local gcloud/docker credentials, not GitHub.
+It is not yet called by the backend or console. Until adapters are added, call
+the worker's HTTP API directly.
 
-## Notes
+## Image targets
 
-- `markdown-to-pdf/chrome/` (a ~343 MB Chrome for Testing binary) is intentionally
-  not committed; it is gitignored and fetched locally when needed.
-- Integration idea for later: both workers share the same puppeteer render path
-  (`markdown-to-pdf` is really `markdown → HTML → the html-to-pdf renderer`), so a
-  common render core is the obvious de-duplication.
+- `deploy/docker/Dockerfile`: `linux/amd64` and `linux/arm64` image for Cloud
+  Run, ECS, Kubernetes, Railway, Render, Fly.io and ordinary Docker hosts.
+- `deploy/lambda/Dockerfile`: `linux/amd64` image with the AWS Lambda Web
+  Adapter. Copy it to same-region ECR before creating a Lambda function.
+
+Build locally from the repository root:
+
+```bash
+docker build \
+  -f workers/pdf-worker/deploy/docker/Dockerfile \
+  -t pdf-worker:local \
+  workers/pdf-worker
+
+docker build \
+  -f workers/pdf-worker/deploy/lambda/Dockerfile \
+  -t pdf-worker-lambda:local \
+  workers/pdf-worker
+```
+
+## Releases
+
+The root workflows are authoritative:
+
+- `.github/workflows/workers-ci.yml` installs, builds and tests the package,
+  renders both supported input types in its standard image, and verifies the
+  Lambda image builds.
+- `.github/workflows/publish-worker-images.yml` publishes the standard and
+  Lambda images with OCI metadata and build attestations.
+
+Every publishing run creates an immutable `sha-<commit>` tag. `main` also gets
+`latest`; other branches get `edge`. A tag such as `workers-v1.0.0` publishes
+the corresponding `1.0.0` image tag.
+
+The earlier per-operation images remain as historical artifacts but are
+superseded by `pdf-worker`.
+
+## Runtime configuration
+
+| Variable                    | Purpose                                                |
+| --------------------------- | ------------------------------------------------------ |
+| `PORT`                      | HTTP listen port; defaults to `8010`                   |
+| `API_TOKEN`                 | Optional bearer token required on render routes        |
+| `MAX_REQUEST_BYTES`         | Maximum JSON request size; defaults to 5 MiB           |
+| `PUPPETEER_EXECUTABLE_PATH` | Chromium binary path; already configured by the images |
+
+Keep secrets in the target platform's secret manager. Never bake them into an
+image or commit them to this repository.

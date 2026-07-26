@@ -1,3 +1,0 @@
-# esbuild (pulled in by tsx) needs its postinstall to fetch the platform binary.
-allowBuilds:
-  esbuild: true

@@ -1,0 +1,15 @@
+node_modules
+dist
+chrome
+.git
+.github
+.superpowers
+tests
+docs
+.env*
+.gitignore
+.prettierrc
+.prettierignore
+README.md
+LICENSE
+vitest.config.ts

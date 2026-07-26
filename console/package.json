@@ -9,7 +9,7 @@
     "start": "next start -p 3000",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "clean": "rm -rf .next",
     "deploy": "pnpm build:cloudflare && wrangler deploy",
     "preview": "wrangler dev",
