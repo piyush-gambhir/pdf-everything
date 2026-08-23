@@ -58,8 +58,10 @@ curl --fail http://localhost:8010/v1/render/html \
   -o out.pdf
 ```
 
-Options support `format`, `printBackground`, `margin`,
-`navigationTimeoutMs`, and `executablePath` for direct library use.
+Options support `format`, `printBackground`, `preferCssPageSize`, `margin`,
+`navigationTimeoutMs`, and `executablePath` for direct library use. Set
+`preferCssPageSize` to `true` when the HTML declares custom geometry with
+CSS `@page` (for example, a 16:9 presentation).
 
 ### Markdown
 

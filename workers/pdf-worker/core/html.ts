@@ -12,6 +12,8 @@ export interface HtmlRenderOptions {
   /** e.g. 'A4', 'Letter' */
   format?: 'A4' | 'Letter' | 'Legal';
   printBackground?: boolean;
+  /** Honor the document's CSS `@page` size instead of forcing `format`. */
+  preferCssPageSize?: boolean;
   margin?: PdfMargin;
   /** Max time for page load + network idle (ms). */
   navigationTimeoutMs?: number;
@@ -79,6 +81,7 @@ export async function renderHtmlToPdf(
     const pdf = await page.pdf({
       format: resolved.format,
       printBackground: resolved.printBackground,
+      preferCSSPageSize: resolved.preferCssPageSize,
       margin: resolved.margin,
     });
     return Buffer.from(pdf);
