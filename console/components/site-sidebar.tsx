@@ -4,18 +4,14 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ArrowUpRight, Blocks, BookOpen, LayoutGrid, Radio } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { TOOLS } from "@/lib/tools/registry"
+import { TOOLS, toolsByCategory } from "@/lib/tools/registry"
 import { CATEGORY_META } from "@/lib/tools/types"
 import { DOCS_URL } from "@/lib/links"
 
+const grouped = toolsByCategory()
+
 export function SiteSidebar() {
   const pathname = usePathname()
-  const grouped = new Map<string, typeof TOOLS>()
-  for (const t of TOOLS) {
-    const list = grouped.get(t.category) ?? []
-    list.push(t)
-    grouped.set(t.category, list)
-  }
 
   return (
     <aside className="hidden h-full w-56 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
@@ -64,7 +60,7 @@ export function SiteSidebar() {
         </ul>
 
         {[...grouped.entries()].map(([cat, tools]) => {
-          const meta = CATEGORY_META[cat as keyof typeof CATEGORY_META]
+          const meta = CATEGORY_META[cat]
           return (
             <div key={cat} className="mb-3.5">
               <p className="ui-micro px-2.5 pb-1 font-semibold tracking-[0.1em] text-subtle-foreground uppercase">

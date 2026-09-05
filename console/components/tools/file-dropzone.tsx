@@ -63,7 +63,7 @@ export function FileDropzone({
       } else {
         setFeedback(null)
       }
-      onChange(next)
+      if (filtered.length > 0) onChange(next)
     },
     [files, multiple, maxFiles, acceptMimes, acceptExtensions, onChange]
   )

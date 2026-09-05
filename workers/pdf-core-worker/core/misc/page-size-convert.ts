@@ -1,6 +1,5 @@
 import { parsePageRange, type PageSizeConvertOptions } from '@pdf-everything/types';
 import { loadPdf, savePdf } from '../shared/load.js';
-import { PageOutOfRangeError } from '../shared/errors.js';
 
 export type { PageSizeConvertOptions };
 
@@ -29,7 +28,6 @@ export async function convertPageSize(
   if (opts.orientation === 'landscape') [targetW, targetH] = [targetH, targetW];
 
   for (const p of targets) {
-    if (p < 1 || p > total) throw new PageOutOfRangeError(p, total);
     const page = doc.getPage(p - 1);
     const { width, height } = page.getSize();
 

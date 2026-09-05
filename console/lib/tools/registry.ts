@@ -1,4 +1,4 @@
-import type { AnyToolDefinition, ToolDefinition } from "./types"
+import type { AnyToolDefinition, ToolCategory, ToolDefinition } from "./types"
 import { mergeTool } from "./merge"
 import { splitTool } from "./split"
 import { rotateTool } from "./rotate"
@@ -45,8 +45,8 @@ export function getTool(id: string): AnyToolDefinition | undefined {
   return TOOLS.find((t) => t.id === id)
 }
 
-export function toolsByCategory(): Map<string, AnyToolDefinition[]> {
-  const map = new Map<string, AnyToolDefinition[]>()
+export function toolsByCategory(): Map<ToolCategory, AnyToolDefinition[]> {
+  const map = new Map<ToolCategory, AnyToolDefinition[]>()
   for (const t of TOOLS) {
     const list = map.get(t.category) ?? []
     list.push(t)

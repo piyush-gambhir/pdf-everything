@@ -5,7 +5,6 @@ import {
   type PageNumberFormat,
 } from '@pdf-everything/types';
 import { loadPdf, savePdf } from '../shared/load.js';
-import { PageOutOfRangeError } from '../shared/errors.js';
 import { computeAnchor } from '../shared/positioning.js';
 
 export type { PageNumberOptions, PageNumberFormat };
@@ -24,7 +23,6 @@ export async function addPageNumbers(
 
   for (let i = 0; i < targets.length; i++) {
     const pageNum = targets[i]!;
-    if (pageNum < 1 || pageNum > total) throw new PageOutOfRangeError(pageNum, total);
     const page = doc.getPage(pageNum - 1);
     const label = renderLabel(opts.format, opts.startNumber + i, targets.length);
     const textWidth = font.widthOfTextAtSize(label, opts.fontSize);

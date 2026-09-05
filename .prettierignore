@@ -4,4 +4,6 @@ dist
 .turbo
 coverage
 pnpm-lock.yaml
-storage
+/storage/
+/backend/storage/
+/web/.source/

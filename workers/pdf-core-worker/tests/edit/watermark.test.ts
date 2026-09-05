@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { PDFDocument } from 'pdf-lib';
 import { watermarkPdf } from '../../core/edit/watermark.js';
-import { makePdf } from '../fixtures.js';
+import { makePdf, pageTexts } from '../fixtures.js';
 
 describe('watermarkPdf', () => {
-  it('produces a valid PDF with the same page count', async () => {
+  it('adds the watermark text to every page by default', async () => {
     const src = await makePdf(3);
     const out = await watermarkPdf(src, {
       text: 'CONFIDENTIAL',
@@ -13,9 +12,7 @@ describe('watermarkPdf', () => {
       opacity: 0.3,
       rotation: -45,
     });
-    const doc = await PDFDocument.load(out);
-    expect(doc.getPageCount()).toBe(3);
-    expect(out.length).toBeGreaterThan(src.length);
+    expect(await pageTexts(out)).toEqual(['P1 CONFIDENTIAL', 'P2 CONFIDENTIAL', 'P3 CONFIDENTIAL']);
   });
 
   it('only watermarks specified pages', async () => {
@@ -28,7 +25,6 @@ describe('watermarkPdf', () => {
       rotation: 0,
       pages: '1,3',
     });
-    const doc = await PDFDocument.load(out);
-    expect(doc.getPageCount()).toBe(4);
+    expect(await pageTexts(out)).toEqual(['P1 DRAFT', 'P2', 'P3 DRAFT', 'P4']);
   });
 });

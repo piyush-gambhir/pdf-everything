@@ -10,7 +10,7 @@ export async function reorderPages(
   const total = src.getPageCount();
 
   if (opts.order.length !== total) {
-    throw new Error(
+    throw new TypeError(
       `Order array length (${opts.order.length}) must equal total page count (${total})`,
     );
   }
@@ -19,7 +19,7 @@ export async function reorderPages(
     if (sorted[i] !== i + 1) {
       const bad = opts.order.find((p) => p < 1 || p > total);
       if (bad !== undefined) throw new PageOutOfRangeError(bad, total);
-      throw new Error('Order must be a permutation of 1..N covering every page exactly once');
+      throw new TypeError('Order must be a permutation of 1..N covering every page exactly once');
     }
   }
 

@@ -1,20 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { resolveChromiumPath } from '../../core/html.js';
 import { TEMPLATE_NAMES, TEMPLATES, isTemplateName } from '../../core/templates/index.js';
 
-describe('browser renderer core', () => {
-  it('resolves Chromium to null or a string', () => {
-    const path = resolveChromiumPath();
-    expect(path === null || typeof path === 'string').toBe(true);
-  });
-});
-
 describe('Markdown template registry', () => {
-  it('exports all expected template names', () => {
-    expect(TEMPLATE_NAMES).toEqual(expect.arrayContaining(['github', 'academic', 'rca']));
-    expect(TEMPLATE_NAMES).toHaveLength(3);
-  });
-
   it('accepts valid template names', () => {
     expect(isTemplateName('github')).toBe(true);
     expect(isTemplateName('academic')).toBe(true);

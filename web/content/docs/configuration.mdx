@@ -38,6 +38,10 @@ console after changing them.
 | `PDF_RENDER_WORKER_URL`   | `http://127.0.0.1:8010` | Chromium worker origin                   |
 | `PDF_RENDER_WORKER_TOKEN` | unset                   | Bearer token sent to the Chromium worker |
 
+`FILE_TTL_HOURS` must be positive. Expired files stop being accessible immediately;
+the API removes expired references and unreferenced content at startup and every
+minute while running.
+
 The current file store is local filesystem storage. A horizontally scaled Nest
 deployment needs shared object storage or sticky routing; otherwise one replica
 cannot read a file created by another replica.

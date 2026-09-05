@@ -1,6 +1,6 @@
 import { parsePageRange } from '@pdf-everything/types';
 import { loadPdf, savePdf } from '../shared/load.js';
-import { EmptyInputError, PageOutOfRangeError } from '../shared/errors.js';
+import { EmptyInputError } from '../shared/errors.js';
 
 export async function removePages(
   input: Buffer | Uint8Array,
@@ -10,9 +10,6 @@ export async function removePages(
   const total = doc.getPageCount();
   const toRemove = new Set(parsePageRange(opts.pages, total));
 
-  for (const p of toRemove) {
-    if (p < 1 || p > total) throw new PageOutOfRangeError(p, total);
-  }
   if (toRemove.size >= total) {
     throw new EmptyInputError('Cannot remove all pages — at least one page must remain');
   }

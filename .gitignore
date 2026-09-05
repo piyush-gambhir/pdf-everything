@@ -10,7 +10,8 @@ coverage
 .env.*.local
 # runtime file storage (anchored so it never ignores src/**/storage source dirs)
 /storage/
-apps/api/storage/
+/backend/storage/
+/web/.source/
 *.tsbuildinfo
 out
 .wrangler

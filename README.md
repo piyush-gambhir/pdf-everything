@@ -51,6 +51,9 @@ corepack pnpm dev
 Read the [documentation](web/content/docs/index.mdx) or the complete
 [deployment guide](web/content/docs/deployment.mdx).
 
+See the [maintenance review](docs/maintenance-review.md) for cleanup findings,
+remaining reliability work, and proposed feature priorities.
+
 ## Verify
 
 ```bash

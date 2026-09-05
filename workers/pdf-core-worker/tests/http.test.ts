@@ -14,7 +14,9 @@ describe('pdf-core-worker HTTP boundary', () => {
     origin = `http://127.0.0.1:${address.port}`;
   });
 
-  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  afterAll(async () => {
+    if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
 
   it('reports every operation', async () => {
     const response = await fetch(`${origin}/health`);
@@ -67,4 +69,18 @@ describe('pdf-core-worker HTTP boundary', () => {
     expect(response.status).toBe(422);
     expect(body.error).toBe('EMPTY_INPUT');
   });
+
+  it.each([0, 2])(
+    'rejects %i inputs to a single-file operation as a client error',
+    async (count) => {
+      const file = (await makePdf(1)).toString('base64');
+      const response = await fetch(`${origin}/v1/execute/rotate`, {
+        method: 'POST',
+        headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ files: Array(count).fill(file), options: { angle: 90 } }),
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: 'bad_request' });
+    },
+  );
 });

@@ -37,9 +37,8 @@ import {
 import type { CoreOperation, ExecuteResult } from './protocol.js';
 
 function one(files: Buffer[]): Buffer {
-  const file = files[0];
-  if (!file) throw new Error('This operation requires one input file.');
-  return file;
+  if (files.length !== 1) throw new TypeError('This operation requires exactly one input file.');
+  return files[0]!;
 }
 
 function pdf(data: Buffer, meta?: Record<string, unknown>): ExecuteResult {

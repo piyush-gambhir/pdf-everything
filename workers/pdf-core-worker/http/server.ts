@@ -9,8 +9,8 @@ import {
   type ExecuteResult,
 } from './protocol.js';
 
-// Nest sends buffered inputs as base64 JSON. Leave enough headroom for the
-// public 100 MiB upload ceiling plus base64 and envelope overhead.
+// Nest sends buffered inputs as base64 JSON. Allow roughly 100 MiB of decoded
+// input plus envelope overhead; the gateway needs its own upload limits.
 const DEFAULT_MAX_REQUEST_BYTES = 150 * 1024 * 1024;
 
 export interface CoreWorkerServerOptions {

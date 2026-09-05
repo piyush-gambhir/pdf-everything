@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowRight,
   Check,
@@ -37,8 +37,8 @@ interface ToolLayoutProps {
 type Result =
   | { kind: "binary"; url: string; filename: string; size: number }
   | { kind: "multi-files"; files: FileMeta[] }
-  | { kind: "text"; text: string; filename: string }
-  | { kind: "json"; data: unknown }
+  | { kind: "text"; text: string; filename: string; url: string; size: number }
+  | { kind: "json"; json: string; url: string }
 
 export function ToolLayout({ toolId }: ToolLayoutProps) {
   const tool = useMemo(() => getTool(toolId), [toolId])
@@ -46,12 +46,20 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
   const [options, setOptions] = useState<unknown>(tool?.defaultOptions)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
+  const request = useRef<AbortController | null>(null)
+
+  useEffect(() => () => request.current?.abort(), [])
+
+  useEffect(() => {
+    if (result && result.kind !== "multi-files") {
+      return () => URL.revokeObjectURL(result.url)
+    }
+  }, [result])
 
   if (!tool) return <div className="p-6">Unknown tool: {toolId}</div>
   const requiresFiles = tool.requiresFiles !== false
 
   const reset = () => {
-    if (result?.kind === "binary") URL.revokeObjectURL(result.url)
     setFiles([])
     setOptions(tool.defaultOptions)
     setResult(null)
@@ -61,6 +69,9 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
     !busy && files.length >= tool.minFiles && files.length <= tool.maxFiles
 
   const submit = async () => {
+    const controller = new AbortController()
+    request.current?.abort()
+    request.current = controller
     setBusy(true)
     try {
       const parsed = tool.schema.safeParse(options)
@@ -75,34 +86,51 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
         files,
         fileFieldName: tool.fileFieldName,
         options: parsed.data,
+        signal: controller.signal,
       }
 
       if (tool.responseType === "binary") {
         const blob = await postBinary(payload)
+        controller.signal.throwIfAborted()
         const url = URL.createObjectURL(blob)
         const filename =
-          tool.outputFilename?.(files.map((f) => f.name)) ??
-          deriveFilename(files[0]?.name, tool.id)
+          tool.outputFilename?.(
+            files.map((f) => f.name),
+            parsed.data
+          ) ?? deriveFilename(files[0]?.name, tool.id)
         setResult({ kind: "binary", url, filename, size: blob.size })
         toast.success("Done — your file is ready")
       } else if (tool.responseType === "multi-files") {
         const json = await postJson<SplitResponse>(payload)
+        controller.signal.throwIfAborted()
         setResult({ kind: "multi-files", files: json.files })
         toast.success(`Done — ${json.files.length} files ready`)
       } else if (tool.responseType === "text") {
         const text = await postText(payload)
+        controller.signal.throwIfAborted()
         const filename = deriveFilename(files[0]?.name, tool.id).replace(
           /\.pdf$/i,
           ".txt"
         )
-        setResult({ kind: "text", text, filename })
+        const blob = new Blob([text], { type: "text/plain" })
+        setResult({
+          kind: "text",
+          text,
+          filename,
+          url: URL.createObjectURL(blob),
+          size: blob.size,
+        })
         toast.success("Done — text extracted")
       } else {
         const data = await postJson<unknown>(payload)
-        setResult({ kind: "json", data })
+        controller.signal.throwIfAborted()
+        const json = JSON.stringify(data, null, 2)
+        const blob = new Blob([json], { type: "application/json" })
+        setResult({ kind: "json", json, url: URL.createObjectURL(blob) })
         toast.success("Done")
       }
     } catch (err) {
+      if (controller.signal.aborted) return
       if (err instanceof ApiError) {
         toast.error(err.problem.title, { description: err.problem.detail })
       } else {
@@ -111,7 +139,7 @@ export function ToolLayout({ toolId }: ToolLayoutProps) {
         })
       }
     } finally {
-      setBusy(false)
+      if (!controller.signal.aborted) setBusy(false)
     }
   }
 
@@ -488,8 +516,6 @@ function ResultView({
     )
   }
   if (result.kind === "text") {
-    const blob = new Blob([result.text], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
     return (
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -500,13 +526,13 @@ function ResultView({
             <div>
               <p className="ui-body font-medium">{result.filename}</p>
               <p className="ui-caption text-muted-foreground">
-                {formatBytes(new Blob([result.text]).size)}
+                {formatBytes(result.size)}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild>
-              <a href={url} download={result.filename}>
+              <a href={result.url} download={result.filename}>
                 <Download className="size-4" />
                 Download
               </a>
@@ -523,10 +549,6 @@ function ResultView({
       </div>
     )
   }
-  // json
-  const json = JSON.stringify(result.data, null, 2)
-  const blob = new Blob([json], { type: "application/json" })
-  const url = URL.createObjectURL(blob)
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -538,7 +560,7 @@ function ResultView({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild>
-            <a href={url} download="result.json">
+            <a href={result.url} download="result.json">
               <Download className="size-4" />
               Download
             </a>
@@ -550,7 +572,7 @@ function ResultView({
         </div>
       </div>
       <pre className="ui-caption max-h-96 overflow-auto rounded-xl bg-surface-1 p-4 font-mono">
-        {json}
+        {result.json}
       </pre>
     </div>
   )

@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 export async function makePdf(
   pageCount: number,
@@ -29,4 +30,26 @@ export async function pageCount(buf: Buffer): Promise<number> {
 export async function pageRotations(buf: Buffer): Promise<number[]> {
   const doc = await PDFDocument.load(buf);
   return doc.getPages().map((p) => p.getRotation().angle);
+}
+
+export async function pageTexts(buf: Buffer): Promise<string[]> {
+  const task = getDocument({ data: new Uint8Array(buf), useSystemFonts: true });
+  try {
+    const doc = await task.promise;
+    const texts: string[] = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      texts.push(
+        content.items
+          .flatMap((item) => ('str' in item ? [item.str] : []))
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim(),
+      );
+    }
+    return texts;
+  } finally {
+    await task.destroy();
+  }
 }
