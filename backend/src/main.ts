@@ -1,11 +1,18 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bodyParser: true });
+  // Document renders arrive as JSON with inlined assets (data URI logos), so the
+  // express default of 100kb is far too small. Cap generously; the workers cap
+  // the actual render size.
+  const bodyLimit = process.env.API_JSON_BODY_LIMIT ?? '8mb';
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
+  app.useBodyParser('json', { limit: bodyLimit });
+  app.useBodyParser('urlencoded', { limit: bodyLimit, extended: true });
   app.enableShutdownHooks();
   app.setGlobalPrefix('api');
   app.useGlobalFilters(new AllExceptionsFilter());
