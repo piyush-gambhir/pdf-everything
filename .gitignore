@@ -8,6 +8,7 @@ coverage
 .env
 .env.*
 !.env.example
+!.env.deploy.example
 # runtime file storage (anchored so it never ignores src/**/storage source dirs)
 /storage/
 /backend/storage/
