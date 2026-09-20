@@ -79,6 +79,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=pdf-everything-api
           cache-to: type=gha,mode=max,scope=pdf-everything-api
+          build-args: |
+            TURBO_TEAMID=${{ vars.TURBO_TEAM || secrets.TURBO_TEAM }}
+          secrets: |
+            "turbo_token=${{ secrets.TURBO_TOKEN }}"
 
       - name: Attest image
         uses: actions/attest@v4
@@ -129,6 +133,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=pdf-core-worker
           cache-to: type=gha,mode=max,scope=pdf-core-worker
+          build-args: |
+            TURBO_TEAMID=${{ vars.TURBO_TEAM || secrets.TURBO_TEAM }}
+          secrets: |
+            "turbo_token=${{ secrets.TURBO_TOKEN }}"
 
       - name: Attest image
         uses: actions/attest@v4
