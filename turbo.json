@@ -5,10 +5,17 @@
     ".env.local",
     "tsconfig.base.json"
   ],
+  "globalPassThroughEnv": [
+    "NODE_ENV",
+    "SKIP_ENV_VALIDATION"
+  ],
   "tasks": {
     "build": {
       "dependsOn": [
         "^build"
+      ],
+      "env": [
+        "NEXT_PUBLIC_*"
       ],
       "outputs": [
         "dist/**",
@@ -24,9 +31,6 @@
     "test": {
       "dependsOn": [
         "^build"
-      ],
-      "outputs": [
-        "coverage/**"
       ]
     },
     "lint": {
