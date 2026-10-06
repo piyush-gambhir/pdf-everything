@@ -155,7 +155,21 @@ bash scripts/deploy-lambda.sh
 ```
 
 The source-build path supports `arm64` or `x86_64`. The published GHCR Lambda
-image is `linux/amd64`; copying that exact image requires an `x86_64` function.
+image is a multi-architecture index (`linux/amd64` and `linux/arm64`). Lambda
+accepts only a single-architecture manifest, so copy the platform manifest that
+matches the function by digest:
+
+```bash
+SOURCE=ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda:sha-<full-commit>
+DIGEST="$(docker buildx imagetools inspect "$SOURCE" --format \
+  '{{range .Manifest.Manifests}}{{if eq .Platform.Architecture "arm64"}}{{.Digest}}{{end}}{{end}}')"
+crane copy "${SOURCE%%:*}@${DIGEST}" "<account>.dkr.ecr.<region>.amazonaws.com/<repository>:arm64-${DIGEST#sha256:}"
+```
+
+Then create or update the function with
+`<account>.dkr.ecr.<region>.amazonaws.com/<repository>@${DIGEST}` and the
+`arm64` architecture. `crane copy` keeps the digest; the full procedure is in
+`workers/DEPLOYMENT.md`.
 
 ### Registry requirement
 

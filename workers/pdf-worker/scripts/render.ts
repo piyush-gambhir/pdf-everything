@@ -187,12 +187,11 @@ async function main() {
   const executablePath = resolveChrome(args.chrome);
 
   console.log(`Rendering ${basename(args.input)} → ${args.template} template`);
-  const pdf = await renderMarkdownToPdf(markdown, {
-    template: args.template,
-    format: args.format,
-    title,
-    executablePath,
-  });
+  const pdf = await renderMarkdownToPdf(
+    markdown,
+    { template: args.template, format: args.format, title },
+    { executablePath },
+  );
 
   writeFileSync(args.out, pdf);
   console.log(`Saved → ${args.out} (${(pdf.length / 1024).toFixed(1)} KB)`);

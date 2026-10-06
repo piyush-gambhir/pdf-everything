@@ -1,6 +1,11 @@
 import { marked } from 'marked';
-import { renderHtmlToPdf, type HtmlRenderOptions } from './html.js';
-import { TEMPLATES, isTemplateName, type TemplateName } from './templates/index.js';
+import { renderHtmlToPdf, type HtmlRenderOptions, type RenderRuntime } from './html.js';
+import {
+  TEMPLATES,
+  TEMPLATE_POST_PROCESS,
+  isTemplateName,
+  type TemplateName,
+} from './templates/index.js';
 
 export type { TemplateName };
 
@@ -20,6 +25,7 @@ const DEFAULT_OPTIONS = {
 export async function renderMarkdownToPdf(
   markdown: string,
   options: MarkdownRenderOptions = {},
+  runtime: RenderRuntime = {},
 ): Promise<Buffer> {
   const templateName = options.template ?? DEFAULT_OPTIONS.template;
   if (!isTemplateName(templateName)) {
@@ -30,8 +36,9 @@ export async function renderMarkdownToPdf(
   const html = TEMPLATES[templateName](bodyHtml, options.title ?? 'Document');
   const { template: _template, title: _title, ...htmlOptions } = options;
 
-  return renderHtmlToPdf(html, {
-    ...htmlOptions,
-    margin: { ...DEFAULT_OPTIONS.margin, ...options.margin },
-  });
+  return renderHtmlToPdf(
+    html,
+    { ...htmlOptions, margin: { ...DEFAULT_OPTIONS.margin, ...options.margin } },
+    { ...runtime, postProcess: TEMPLATE_POST_PROCESS[templateName] },
+  );
 }

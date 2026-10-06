@@ -1,10 +1,17 @@
 import { type Server } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { RenderLimitError, renderHtmlToPdf } from '../../core/html.js';
+import { renderMarkdownToPdf } from '../../core/markdown.js';
 import { createHttpServer } from '../../deploy/docker/http.js';
 
-vi.mock('../../core/html.js', () => ({
+vi.mock('../../core/html.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../core/html.js')>()),
   resolveChromiumPath: () => '/usr/bin/chromium',
-  renderHtmlToPdf: vi.fn().mockResolvedValue(Buffer.from('%PDF-1.4 html')),
+  renderHtmlToPdf: vi
+    .fn()
+    .mockResolvedValue(
+      Buffer.from('%PDF-1.4 html\n<< /Type /Page >>\n<< /Type /Pages /Count 1 >>'),
+    ),
 }));
 
 vi.mock('../../core/markdown.js', () => ({
@@ -180,6 +187,97 @@ describe('HTTP server without authentication', () => {
 
   it('returns 404 for unknown routes', async () => {
     expect((await request(origin, '/unknown')).status).toBe(404);
+  });
+});
+
+describe('HTTP render options', () => {
+  let server: Server;
+  let origin: string;
+
+  beforeAll(async () => {
+    server = await createHttpServer({ port: 0, apiToken: null, limits: { maxPages: 7 } });
+    origin = getServerOrigin(server);
+  });
+
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const renderHtml = (options: unknown) =>
+    request(origin, '/v1/render/html', {
+      method: 'POST',
+      body: JSON.stringify({ html: '<p>Hello</p>', options }),
+      headers: jsonHeaders,
+    });
+
+  it('passes only validated page settings and the operator limits to the renderer', async () => {
+    const res = await renderHtml({
+      format: 'Letter',
+      printBackground: false,
+      preferCssPageSize: true,
+      margin: { top: '12mm', left: '0.5in' },
+      navigationTimeoutMs: 30000,
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-pdf-page-count')).toBe('1');
+    expect(vi.mocked(renderHtmlToPdf)).toHaveBeenLastCalledWith(
+      '<p>Hello</p>',
+      {
+        format: 'Letter',
+        printBackground: false,
+        preferCssPageSize: true,
+        margin: { top: '12mm', left: '0.5in' },
+        navigationTimeoutMs: 30000,
+      },
+      { limits: { maxPages: 7 } },
+    );
+  });
+
+  it.each([
+    [{ executablePath: '/bin/sh' }, /executablePath/],
+    [{ args: ['--remote-debugging-port=9222'] }, /args/],
+    [{ format: 'Tabloid' }, /format/],
+    [{ margin: { top: 'calc(1px)' } }, /top/],
+    [{ margin: { gutter: '1mm' } }, /gutter/],
+    [{ printBackground: 'yes' }, /printBackground/],
+    [{ navigationTimeoutMs: 999999 }, /navigationTimeoutMs/],
+    [{ template: 'rca' }, /template/],
+  ])('refuses %j on the HTML route', async (options, message) => {
+    const calls = vi.mocked(renderHtmlToPdf).mock.calls.length;
+    const res = await renderHtml(options);
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toMatch(message);
+    expect(vi.mocked(renderHtmlToPdf).mock.calls.length).toBe(calls);
+  });
+
+  it('accepts template and title on the Markdown route, and nothing else', async () => {
+    const ok = await request(origin, '/v1/render/markdown', {
+      method: 'POST',
+      body: JSON.stringify({ markdown: '# Hi', options: { template: 'rca', title: 'RCA' } }),
+      headers: jsonHeaders,
+    });
+    expect(ok.status).toBe(200);
+    expect(vi.mocked(renderMarkdownToPdf)).toHaveBeenLastCalledWith(
+      '# Hi',
+      { template: 'rca', title: 'RCA' },
+      { limits: { maxPages: 7 } },
+    );
+
+    const refused = await request(origin, '/v1/render/markdown', {
+      method: 'POST',
+      body: JSON.stringify({ markdown: '# Hi', options: { executablePath: '/bin/sh' } }),
+      headers: jsonHeaders,
+    });
+    expect(refused.status).toBe(400);
+  });
+
+  it.each([
+    ['page_limit_exceeded', 422],
+    ['output_too_large', 422],
+    ['render_timeout', 504],
+  ] as const)('answers a %s render with %i', async (code, status) => {
+    vi.mocked(renderHtmlToPdf).mockRejectedValueOnce(new RenderLimitError(code, 'stopped'));
+    const res = await renderHtml(undefined);
+    expect(res.status).toBe(status);
+    expect(await res.json()).toEqual({ error: code, message: 'stopped' });
   });
 });
 

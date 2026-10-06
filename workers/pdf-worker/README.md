@@ -58,10 +58,24 @@ curl --fail http://localhost:8010/v1/render/html \
   -o out.pdf
 ```
 
-Options support `format`, `printBackground`, `preferCssPageSize`, `margin`,
-`navigationTimeoutMs`, and `executablePath` for direct library use. Set
+Options are page settings only: `format` (`A4`, `Letter`, `Legal`),
+`printBackground`, `preferCssPageSize`, `margin` (`top`, `right`, `bottom`,
+`left`, each a length in `px`, `in`, `cm` or `mm`), and `navigationTimeoutMs`
+(1000 to 120000). Any other option is refused with `400`. Set
 `preferCssPageSize` to `true` when the HTML declares custom geometry with
 CSS `@page` (for example, a 16:9 presentation).
+
+The document renders sealed: JavaScript is off and nothing is fetched over the
+network. Only `data:` URIs load, so embed images, stylesheets and fonts. A
+successful response carries the page count in `X-PDF-Page-Count`. A render
+that passes a limit answers `422` (`page_limit_exceeded`, `output_too_large`)
+or `504` (`render_timeout`).
+
+The images install Manrope (variable, 200 to 800), FreeFont, Noto Sans and
+Serif CJK and Noto Color Emoji as system fonts. Each installed Manrope file is
+one Unicode subset, and Chromium does not stitch system subsets together, so a
+document that needs Manrope beyond Latin should embed its subsets with
+`unicode-range`.
 
 ### Markdown
 
@@ -117,7 +131,9 @@ bash scripts/deploy-lambda.sh
 
 Use at least 1536 MB memory for Chromium; the deployment script defaults to
 2048 MB and a 60-second timeout. AWS Lambda container images must be copied to
-ECR in the same region as the function.
+ECR in the same region as the function. The published Lambda image is
+multi-arch (`linux/amd64`, `linux/arm64`); Lambda needs one platform's
+manifest, so deploy its per-platform digest (see the deployment guide).
 
 ## Configuration
 
@@ -126,6 +142,9 @@ ECR in the same region as the function.
 | `PORT`                      | `8010`    | HTTP listen port                        |
 | `API_TOKEN`                 | unset     | Optional bearer token for render routes |
 | `MAX_REQUEST_BYTES`         | `5242880` | Maximum request-body size               |
+| `MAX_PDF_PAGES`             | `200`     | Most pages a PDF may have               |
+| `MAX_PDF_BYTES`             | `26214400` | Largest PDF (Lambda image: `4194304`)  |
+| `RENDER_DEADLINE_MS`        | `50000`   | Whole-render deadline                   |
 | `PUPPETEER_EXECUTABLE_PATH` | auto      | Chromium/Chrome binary                  |
 
 ## Library use
@@ -133,6 +152,9 @@ ECR in the same region as the function.
 ```ts
 import { renderHtmlToPdf } from './core/html.js';
 import { renderMarkdownToPdf } from './core/markdown.js';
+
+// Page settings, then operator settings (never taken from a request).
+await renderHtmlToPdf(html, { format: 'Letter' }, { executablePath, limits: { maxPages: 20 } });
 ```
 
 The Markdown CLI remains available:

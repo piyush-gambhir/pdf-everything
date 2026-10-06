@@ -1,28 +1,38 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { renderHtmlToPdf, resolveChromiumPath, type HtmlRenderOptions } from '../../core/html.js';
-import { renderMarkdownToPdf, type MarkdownRenderOptions } from '../../core/markdown.js';
-import { TEMPLATE_NAMES, isTemplateName } from '../../core/templates/index.js';
+import {
+  RenderLimitError,
+  countPdfPages,
+  renderHtmlToPdf,
+  resolveChromiumPath,
+  type RenderLimits,
+} from '../../core/html.js';
+import { renderMarkdownToPdf } from '../../core/markdown.js';
+import { InvalidOptionsError, parseHtmlOptions, parseMarkdownOptions } from '../../core/options.js';
+import { TEMPLATE_NAMES } from '../../core/templates/index.js';
 
 const DEFAULT_MAX_REQUEST_BYTES = 5 * 1024 * 1024;
 
 class RequestTooLargeError extends Error {}
 
-interface RenderRequestOptions extends HtmlRenderOptions {
-  template?: string;
-  title?: string;
-}
-
 interface RenderRequest {
   html?: unknown;
   markdown?: unknown;
-  options?: RenderRequestOptions;
+  options?: unknown;
 }
 
 export interface HttpServerOptions {
   apiToken: string | null;
   port: number;
   maxRequestBytes?: number;
+  /** Page, size and time bounds for every render (defaults: DEFAULT_LIMITS). */
+  limits?: Partial<RenderLimits>;
 }
+
+const LIMIT_STATUS: Record<RenderLimitError['code'], number> = {
+  page_limit_exceeded: 422,
+  output_too_large: 422,
+  render_timeout: 504,
+};
 
 function json(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -55,6 +65,17 @@ function readBody(req: IncomingMessage, maxBytes: number): Promise<string> {
   });
 }
 
+/** Validate request options, answering 400 when they are refused. */
+function parsedOptions<T>(res: ServerResponse, parse: () => T): T | null {
+  try {
+    return parse();
+  } catch (error) {
+    const message = error instanceof InvalidOptionsError ? error.message : 'Invalid options.';
+    json(res, 400, { error: 'bad_request', message });
+    return null;
+  }
+}
+
 function unauthorized(res: ServerResponse) {
   json(res, 401, {
     error: 'unauthorized',
@@ -73,9 +94,14 @@ async function sendPdf(res: ServerResponse, render: () => Promise<Buffer>) {
       'Content-Type': 'application/pdf',
       'Content-Length': pdf.length,
       'Cache-Control': 'no-store',
+      'X-PDF-Page-Count': String(countPdfPages(pdf)),
     });
     res.end(pdf);
   } catch (error) {
+    if (error instanceof RenderLimitError) {
+      json(res, LIMIT_STATUS[error.code], { error: error.code, message: error.message });
+      return;
+    }
     const message = error instanceof Error ? error.message : 'render_failed';
     json(res, 500, { error: 'render_failed', message });
   }
@@ -84,6 +110,7 @@ async function sendPdf(res: ServerResponse, render: () => Promise<Buffer>) {
 /** HTTP server for browser-based HTML and Markdown PDF rendering. */
 export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
   const maxRequestBytes = opts.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
+  const runtime = { limits: opts.limits };
 
   const server = createServer(async (req, res) => {
     const { pathname } = new URL(req.url ?? '/', 'http://localhost');
@@ -148,14 +175,6 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
       return;
     }
 
-    if (
-      body.options !== undefined &&
-      (!body.options || typeof body.options !== 'object' || Array.isArray(body.options))
-    ) {
-      json(res, 400, { error: 'bad_request', message: 'Field "options" must be an object.' });
-      return;
-    }
-
     const wantsHtml = pathname === '/v1/render/html';
     const wantsMarkdown = pathname === '/v1/render/markdown';
     const hasHtml = 'html' in body;
@@ -178,7 +197,9 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
         return;
       }
       const html = body.html;
-      await sendPdf(res, () => renderHtmlToPdf(html, body.options ?? {}));
+      const options = parsedOptions(res, () => parseHtmlOptions(body.options));
+      if (!options) return;
+      await sendPdf(res, () => renderHtmlToPdf(html, options, runtime));
       return;
     }
 
@@ -191,19 +212,10 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
         return;
       }
 
-      const templateName = body.options?.template;
-      if (templateName !== undefined && !isTemplateName(templateName)) {
-        json(res, 400, {
-          error: 'bad_request',
-          message: `Unknown template "${templateName}". Valid templates: ${TEMPLATE_NAMES.join(', ')}.`,
-        });
-        return;
-      }
-
       const markdown = body.markdown;
-      await sendPdf(res, () =>
-        renderMarkdownToPdf(markdown, (body.options ?? {}) as MarkdownRenderOptions),
-      );
+      const options = parsedOptions(res, () => parseMarkdownOptions(body.options));
+      if (!options) return;
+      await sendPdf(res, () => renderMarkdownToPdf(markdown, options, runtime));
       return;
     }
   });

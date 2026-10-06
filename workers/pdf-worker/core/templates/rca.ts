@@ -230,56 +230,54 @@ export function rcaTemplate(bodyHtml: string, title: string): string {
 </head>
 <body>
 ${bodyHtml}
-<script>
-(function () {
-  // 1. Mark the first headerless two-column table as the metadata table
-  var tables = document.querySelectorAll('table');
-  for (var i = 0; i < tables.length; i++) {
-    var t = tables[i];
-    if (!t.querySelector('thead') && t.querySelector('tr')) {
-      var firstRowCells = t.querySelectorAll('tr:first-child td, tr:first-child th');
+</body>
+</html>`;
+}
+
+/**
+ * The RCA layout's markup adjustments. Page scripts never run in the renderer,
+ * so this runs as trusted DevTools post-processing (it must be self-contained:
+ * it is serialized into the page).
+ */
+export function rcaPostProcess(): void {
+  // 1. Mark the first headerless two-column table as the metadata table.
+  for (const table of Array.from(document.querySelectorAll('table'))) {
+    if (!table.querySelector('thead') && table.querySelector('tr')) {
+      const firstRowCells = table.querySelectorAll('tr:first-child td, tr:first-child th');
       if (firstRowCells.length === 2) {
-        t.classList.add('meta-table');
+        table.classList.add('meta-table');
         break;
       }
     }
   }
 
-  // 2. Wrap RC-N headings + following content in callout divs
-  var headings = document.querySelectorAll('h3');
-  headings.forEach(function (h) {
-    var text = h.textContent || '';
-    var rcMatch = text.match(/^RC-\d+/i);
-    if (!rcMatch) return;
+  // 2. Wrap RC-N headings and their following content in callout divs.
+  for (const heading of Array.from(document.querySelectorAll('h3'))) {
+    const text = heading.textContent ?? '';
+    if (!/^RC-\d+/i.test(text)) continue;
 
-    var severityClass = 'rc-callout-low';
-    var lc = text.toLowerCase();
-    if (lc.includes('high') || lc.includes('critical')) {
+    const lower = text.toLowerCase();
+    let severityClass = 'rc-callout-low';
+    if (lower.includes('high') || lower.includes('critical')) {
       severityClass = 'rc-callout-high';
-    } else if (lc.includes('medium') || lc.includes('contributing')) {
+    } else if (lower.includes('medium') || lower.includes('contributing')) {
       severityClass = 'rc-callout-medium';
     }
 
-    // Collect following siblings until the next heading or hr
-    var siblings = [];
-    var node = h.nextSibling;
+    // Collect following siblings until the next heading or rule.
+    const siblings: ChildNode[] = [];
+    let node = heading.nextSibling;
     while (node) {
-      var next = node.nextSibling;
-      var tag = node.nodeName ? node.nodeName.toLowerCase() : '';
+      const tag = node.nodeName.toLowerCase();
       if (/^h[1-6]$/.test(tag) || tag === 'hr') break;
       siblings.push(node);
-      node = next;
+      node = node.nextSibling;
     }
 
-    // Wrap in callout div
-    var div = document.createElement('div');
-    div.className = 'rc-callout ' + severityClass;
-    h.parentNode.insertBefore(div, h);
-    div.appendChild(h);
-    siblings.forEach(function (s) { div.appendChild(s); });
-  });
-})();
-</script>
-</body>
-</html>`;
+    const callout = document.createElement('div');
+    callout.className = `rc-callout ${severityClass}`;
+    heading.parentNode?.insertBefore(callout, heading);
+    callout.appendChild(heading);
+    for (const sibling of siblings) callout.appendChild(sibling);
+  }
 }

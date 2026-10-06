@@ -43,10 +43,20 @@ and expose only the appropriate route through each gateway or reverse proxy.
 | Target                                                      | Image                                                     | Architectures                |
 | ----------------------------------------------------------- | --------------------------------------------------------- | ---------------------------- |
 | Docker, Cloud Run, ECS, Kubernetes, Railway, Render, Fly.io | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker`        | `linux/amd64`, `linux/arm64` |
-| AWS Lambda container function                               | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda` | `linux/amd64`                |
+| AWS Lambda container function                               | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda` | `linux/amd64`, `linux/arm64` |
 
 The Lambda image contains the same HTTP server plus the AWS Lambda Web Adapter.
 Do not deploy the Lambda image to an ordinary container host.
+
+Both images are multi-architecture indexes. Lambda accepts only a
+single-architecture manifest, so a Lambda deployment uses the per-platform
+digest inside the index (see [Deploy to AWS Lambda](#deploy-to-aws-lambda)).
+
+Both images pin their inputs: the Node/Alpine base image by index digest, the
+Lambda Web Adapter by digest, and Chromium by exact Alpine package version
+(`CHROMIUM_VERSION` in each Dockerfile). Alpine keeps only the newest build of
+a package, so when Alpine ships a Chromium update the image build fails until
+that version is bumped in a commit; a renderer change is never silent.
 
 Both images are public. Production deployments should use an immutable
 `sha-<full-commit>` tag or image digest rather than `latest`.
@@ -90,12 +100,30 @@ only after measuring memory, CPU, latency, and document complexity.
 
 ### Production hardening
 
-Treat every render as untrusted browser input:
+The worker treats every document as untrusted and renders it sealed:
 
-- HTML and Markdown can reference remote images, fonts, stylesheets, and other
-  URLs. The worker currently allows Chromium to fetch those resources.
+- **No network.** Every request the document makes is refused except `data:`
+  URIs. A navigation (a meta refresh, a frame) is answered with an empty 204
+  so the document stays in place; any other request is aborted. As a second
+  layer, Chromium sends all connections to a closed local proxy port and
+  resolves no host names. Embed images, stylesheets and fonts as `data:` URIs.
+- **No scripts.** JavaScript is disabled in the page. The built-in RCA
+  Markdown template's markup pass runs as trusted DevTools post-processing,
+  never as a page script.
+- **Only page settings.** A request may set `format`, `margin`,
+  `printBackground`, `preferCssPageSize` and `navigationTimeoutMs` (plus
+  `template` and `title` for Markdown). Any other option, such as a browser
+  path, is refused with `400`.
+- **Bounded.** `MAX_PDF_PAGES` (default 200), `MAX_PDF_BYTES` (default 25 MiB;
+  4 MiB in the Lambda image) and a whole-render deadline `RENDER_DEADLINE_MS`
+  (default 50 s) end a render with `422 page_limit_exceeded`,
+  `422 output_too_large` or `504 render_timeout`. A successful response carries
+  the page count in `X-PDF-Page-Count`.
+
+Platform controls still matter:
+
 - Keep the worker away from sensitive internal networks and cloud metadata
-  endpoints, or enforce an outbound proxy/egress policy.
+  endpoints; the worker's own blocking is not a substitute for egress policy.
 - Put rate limits, request timeouts, and request-size limits at the gateway as
   well as using `MAX_REQUEST_BYTES`.
 - The standard image runs as a non-root user, but Chromium uses
@@ -104,9 +132,9 @@ Treat every render as untrusted browser input:
 - Log request metadata, latency, status, and output size at the gateway. Do not
   log raw documents unless the data policy explicitly permits it.
 
-The current worker does not implement a URL allowlist, per-tenant quotas, a
-browser pool, a queue, or durable job storage. Add those controls at the
-platform boundary before accepting untrusted multi-tenant traffic.
+The worker does not implement per-tenant quotas, a browser pool, a queue, or
+durable job storage. Add those controls at the platform boundary before
+accepting untrusted multi-tenant traffic.
 
 ## Run with Docker
 
@@ -228,8 +256,10 @@ remote assets. Set a minimum instance if cold-start latency matters.
 
 Lambda cannot pull the published image directly from GHCR. The Lambda image
 must be copied into a private ECR repository in the same AWS Region as the
-function. The published Lambda image is `linux/amd64`, so the Lambda function
-must use `x86_64`.
+function. The published Lambda image is a multi-architecture index
+(`linux/amd64` and `linux/arm64`); Lambda rejects an index, so copy the one
+platform manifest that matches the function's architecture (`arm64` is
+cheaper on Graviton).
 
 The simplest supported path builds the image from the checked-out source,
 pushes it to ECR, and creates or updates the function:
@@ -260,16 +290,22 @@ bash scripts/deploy-lambda.sh
 ```
 
 That source-build path supports either `arm64` or `x86_64`. To reuse the
-published GHCR Lambda image instead, copy its `linux/amd64` manifest to ECR,
-then configure an `x86_64` Lambda function with that ECR URI:
+published GHCR Lambda image instead, copy the platform manifest by digest, so
+the image in ECR is byte-for-byte the one that was published, then point the
+function at the ECR digest. [`crane`](https://github.com/google/go-containerregistry/tree/main/cmd/crane)
+copies a manifest without rewriting it (`docker pull` and `docker push` may
+not):
 
 ```bash
 export AWS_REGION=ap-south-1
 export ECR_REPOSITORY=pdf-everything-pdf-worker
-export SOURCE_IMAGE=ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda:latest
+export SOURCE=ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda:sha-<full-commit>
 export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 export ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-export ECR_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+
+# The linux/arm64 manifest inside the published index.
+export DIGEST="$(docker buildx imagetools inspect "${SOURCE}" --format \
+  '{{range .Manifest.Manifests}}{{if eq .Platform.Architecture "arm64"}}{{.Digest}}{{end}}{{end}}')"
 
 aws ecr describe-repositories \
   --region "${AWS_REGION}" \
@@ -279,12 +315,17 @@ aws ecr describe-repositories \
     --repository-name "${ECR_REPOSITORY}"
 
 aws ecr get-login-password --region "${AWS_REGION}" \
-  | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+  | crane auth login "${ECR_REGISTRY}" --username AWS --password-stdin
 
-docker pull --platform linux/amd64 "${SOURCE_IMAGE}"
-docker tag "${SOURCE_IMAGE}" "${ECR_IMAGE}"
-docker push "${ECR_IMAGE}"
+crane copy "${SOURCE%%:*}@${DIGEST}" "${ECR_REGISTRY}/${ECR_REPOSITORY}:arm64-${DIGEST#sha256:}"
+crane digest "${ECR_REGISTRY}/${ECR_REPOSITORY}:arm64-${DIGEST#sha256:}"   # prints ${DIGEST}
+
+aws lambda update-function-code --region "${AWS_REGION}" \
+  --function-name pdf-everything-pdf-worker \
+  --image-uri "${ECR_REGISTRY}/${ECR_REPOSITORY}@${DIGEST}"
 ```
+
+For an `x86_64` function, select `amd64` instead of `arm64`.
 
 Use at least 1536 MiB memory for Chromium; the repository defaults to 2048 MiB
 and a 60-second timeout. Prefer `AWS_IAM` Function URL authentication. If

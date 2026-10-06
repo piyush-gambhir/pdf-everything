@@ -203,6 +203,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: docker/setup-qemu-action@v4
+
       - uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
@@ -229,7 +231,9 @@ jobs:
         with:
           context: workers/pdf-worker
           file: workers/pdf-worker/deploy/lambda/Dockerfile
-          platforms: linux/amd64
+          # A multi-arch index for distribution. Lambda takes one platform's
+          # manifest, so deployments copy the per-platform digest to ECR.
+          platforms: linux/amd64,linux/arm64
           provenance: false
           push: true
           tags: ${{ steps.meta.outputs.tags }}
