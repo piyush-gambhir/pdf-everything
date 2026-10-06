@@ -142,8 +142,18 @@ export function countPdfPages(pdf: Buffer): number {
       !isLetter(text[i - 1]) &&
       (text[i + 6] === '\r' || text[i + 6] === '\n')
     ) {
-      const end = text.indexOf('endstream', i + 6);
-      i = end === -1 ? text.length : end + 'endstream'.length;
+      // Skip the body by its declared /Length: binary data may itself hold
+      // the bytes "endstream". Chromium writes the length directly; an
+      // indirect or missing one falls back to the terminator.
+      const dictionary = text.slice(text.lastIndexOf(' obj', i), i);
+      const length = /\/Length\s+(\d+)(?!\s+\d+\s+R)/.exec(dictionary);
+      const bodyStart = i + 6 + (text[i + 6] === '\r' && text[i + 7] === '\n' ? 2 : 1);
+      if (length) {
+        i = bodyStart + Number(length[1]);
+      } else {
+        const end = text.indexOf('endstream', bodyStart);
+        i = end === -1 ? text.length : end + 'endstream'.length;
+      }
     } else if (text.startsWith('/Type', i)) {
       if (/^\/Type\s*\/Page(?![A-Za-z0-9#])/.test(text.slice(i, i + 24))) pages++;
       i += '/Type'.length;

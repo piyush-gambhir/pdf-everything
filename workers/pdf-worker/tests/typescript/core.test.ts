@@ -58,4 +58,16 @@ describe('countPdfPages', () => {
     );
     expect(countPdfPages(pdf)).toBe(1);
   });
+
+  it('skips a stream body by its length, even when it holds the bytes "endstream"', () => {
+    const body = 'endstream /Type /Page (';
+    const pdf = Buffer.from(
+      [
+        `1 0 obj << /Length ${body.length} >>\nstream\n${body}\nendstream\nendobj`,
+        '2 0 obj << /Type /Page >> endobj',
+        '3 0 obj << /Type /Page >> endobj',
+      ].join('\n'),
+    );
+    expect(countPdfPages(pdf)).toBe(2);
+  });
 });
