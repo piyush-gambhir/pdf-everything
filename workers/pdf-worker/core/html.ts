@@ -146,7 +146,7 @@ export function countPdfPages(pdf: Buffer): number {
       // the bytes "endstream". Chromium writes the length directly; an
       // indirect or missing one falls back to the terminator.
       const dictionary = text.slice(text.lastIndexOf(' obj', i), i);
-      const length = /\/Length\s+(\d+)(?!\s+\d+\s+R)/.exec(dictionary);
+      const length = /\/Length\s+(\d+)(?!\d)(?!\s+\d+\s+R)/.exec(dictionary);
       const bodyStart = i + 6 + (text[i + 6] === '\r' && text[i + 7] === '\n' ? 2 : 1);
       if (length) {
         i = bodyStart + Number(length[1]);

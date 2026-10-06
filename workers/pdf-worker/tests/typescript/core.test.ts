@@ -70,4 +70,14 @@ describe('countPdfPages', () => {
     );
     expect(countPdfPages(pdf)).toBe(2);
   });
+
+  it('treats a multi-digit indirect length as unknown and finds the terminator', () => {
+    const pdf = Buffer.from(
+      [
+        '1 0 obj << /Length 12 0 R >>\nstream\nx/Type /Page\nendstream\nendobj',
+        '2 0 obj << /Type /Page >> endobj',
+      ].join('\n'),
+    );
+    expect(countPdfPages(pdf)).toBe(1);
+  });
 });
