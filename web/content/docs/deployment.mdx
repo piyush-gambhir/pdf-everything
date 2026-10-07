@@ -123,9 +123,10 @@ The Chromium folder includes a Cloud Run deployment script under
 
 - `workers/pdf-worker/deploy/lambda/Dockerfile`;
 - the AWS Lambda Web Adapter;
-- `workers/pdf-worker/scripts/deploy-lambda.sh`;
-- configurable architecture, memory, timeout, Function URL authentication, and
-  ECR push.
+- `workers/pdf-worker/scripts/deploy-lambda.sh`, which deploys by image
+  digest, publishes a version, optionally moves an alias, and keeps the
+  function's existing environment variables, memory and timeout unless told
+  otherwise.
 
 Prepare:
 
@@ -143,9 +144,8 @@ FUNCTION_NAME=pdf-everything-pdf-worker
 LAMBDA_EXECUTION_ROLE_ARN=arn:aws:iam::<account-id>:role/<lambda-exec-role>
 
 ARCHITECTURE=arm64
-MEMORY_MB=2048
-TIMEOUT_S=60
 FUNCTION_URL_AUTH=AWS_IAM
+ALIAS_NAME=live
 ```
 
 Deploy:
@@ -166,10 +166,10 @@ DIGEST="$(docker buildx imagetools inspect "$SOURCE" --format \
 crane copy "${SOURCE%%:*}@${DIGEST}" "<account>.dkr.ecr.<region>.amazonaws.com/<repository>:arm64-${DIGEST#sha256:}"
 ```
 
-Then create or update the function with
-`<account>.dkr.ecr.<region>.amazonaws.com/<repository>@${DIGEST}` and the
-`arm64` architecture. `crane copy` keeps the digest; the full procedure is in
-`workers/DEPLOYMENT.md`.
+Then deploy that digest with `IMAGE_DIGEST="${DIGEST}" bash
+scripts/deploy-lambda.sh`. `crane copy` keeps the digest; the full procedure is
+in `workers/DEPLOYMENT.md`. Send traffic to the alias or a published version,
+not the unqualified function, so a rollback is moving the alias back.
 
 ### Registry requirement
 

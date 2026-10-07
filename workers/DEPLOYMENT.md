@@ -263,8 +263,17 @@ function. The published Lambda image is a multi-architecture index
 platform manifest that matches the function's architecture (`arm64` is
 cheaper on Graviton).
 
-The simplest supported path builds the image from the checked-out source,
-pushes it to ECR, and creates or updates the function:
+`scripts/deploy-lambda.sh` deploys by digest. It builds the image from the
+checked-out source and pushes it to ECR (or takes `IMAGE_DIGEST`, an image
+already in ECR), checks that ECR holds that digest as a single-platform image,
+points the function at `<repository>@sha256:...`, publishes a version, checks
+that the version runs that digest, and, with `ALIAS_NAME`, moves the alias to
+the new version and prints the previous one for a rollback. A function that
+already exists keeps its configuration: its environment variables survive
+(`API_TOKEN`, when set, is merged into them), memory and timeout change only
+when `MEMORY_MB` or `TIMEOUT_S` is set, and every update names the revision it
+read, so a change made in the meantime fails the deploy instead of being
+overwritten.
 
 ```bash
 cd workers/pdf-worker
@@ -280,9 +289,8 @@ FUNCTION_NAME=pdf-everything-pdf-worker
 LAMBDA_EXECUTION_ROLE_ARN=arn:aws:iam::<account-id>:role/<lambda-exec-role>
 
 ARCHITECTURE=arm64
-MEMORY_MB=2048
-TIMEOUT_S=60
 FUNCTION_URL_AUTH=AWS_IAM
+ALIAS_NAME=live
 ```
 
 Then deploy:
@@ -293,8 +301,8 @@ bash scripts/deploy-lambda.sh
 
 That source-build path supports either `arm64` or `x86_64`. To reuse the
 published GHCR Lambda image instead, copy the platform manifest by digest, so
-the image in ECR is byte-for-byte the one that was published, then point the
-function at the ECR digest. [`crane`](https://github.com/google/go-containerregistry/tree/main/cmd/crane)
+the image in ECR is byte-for-byte the one that was published, then deploy that
+digest with `IMAGE_DIGEST`. [`crane`](https://github.com/google/go-containerregistry/tree/main/cmd/crane)
 copies a manifest without rewriting it (`docker pull` and `docker push` may
 not):
 
@@ -322,15 +330,19 @@ aws ecr get-login-password --region "${AWS_REGION}" \
 crane copy "${SOURCE%%:*}@${DIGEST}" "${ECR_REGISTRY}/${ECR_REPOSITORY}:arm64-${DIGEST#sha256:}"
 crane digest "${ECR_REGISTRY}/${ECR_REPOSITORY}:arm64-${DIGEST#sha256:}"   # prints ${DIGEST}
 
-aws lambda update-function-code --region "${AWS_REGION}" \
-  --function-name pdf-everything-pdf-worker \
-  --image-uri "${ECR_REGISTRY}/${ECR_REPOSITORY}@${DIGEST}"
+IMAGE_DIGEST="${DIGEST}" bash scripts/deploy-lambda.sh
 ```
 
 For an `x86_64` function, select `amd64` instead of `arm64`.
 
-Use at least 1536 MiB memory for Chromium; the repository defaults to 2048 MiB
-and a 60-second timeout. Prefer `AWS_IAM` Function URL authentication. If
+Send traffic to the alias (or the published version), not to the unqualified
+function: `$LATEST` changes during a deploy, a version never does, and moving
+the alias back to the printed previous version is the rollback. The Function
+URL the script creates is on the unqualified function; create one with
+`--qualifier <alias>` instead if callers use the URL.
+
+Use at least 1536 MiB memory for Chromium; a new function gets 2048 MiB and a
+60-second timeout. Prefer `AWS_IAM` Function URL authentication. If
 `FUNCTION_URL_AUTH=NONE`, set `API_TOKEN` or protect the function with an
 authenticated gateway.
 
