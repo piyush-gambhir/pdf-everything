@@ -201,9 +201,11 @@ on a normal container platform until an S3-reference job adapter is added.
 
 ### Authentication
 
-Prefer `FUNCTION_URL_AUTH=AWS_IAM` for a private Nest-to-worker call. If you use
-`NONE`, configure `API_TOKEN` and put rate limiting in front of the Function
-URL. Never expose an unauthenticated renderer: anyone could spend its Chromium
+`FUNCTION_URL_AUTH=AWS_IAM` keeps the Function URL private to callers that sign
+their requests with SigV4, or call the function through the Lambda API. Nest's
+worker client sends only a bearer token and does not sign, so it cannot call an
+`AWS_IAM` URL directly. If you use `NONE`, configure `API_TOKEN` and put rate
+limiting in front of the Function URL. Never expose an unauthenticated renderer: anyone could spend its Chromium
 capacity.
 
 ## Persistent files

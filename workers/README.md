@@ -28,8 +28,9 @@ context.
 
 - `deploy/docker/Dockerfile`: `linux/amd64` and `linux/arm64` image for Cloud
   Run, ECS, Kubernetes, Railway, Render, Fly.io and ordinary Docker hosts.
-- `deploy/lambda/Dockerfile`: `linux/amd64` image with the AWS Lambda Web
-  Adapter. Copy it to same-region ECR before creating a Lambda function.
+- `deploy/lambda/Dockerfile`: `linux/amd64` and `linux/arm64` image with the
+  AWS Lambda Web Adapter. Copy one platform's manifest to same-region ECR
+  before creating a Lambda function.
 
 Build locally from the repository root:
 

@@ -31,9 +31,10 @@ function openApiSchema(schema: z.ZodType, io: 'input' | 'output') {
 function requestBody(schema: z.ZodType): ApiBodyOptions {
   return {
     description:
-      'The request as a JSON body, or as multipart/form-data with this object JSON-encoded ' +
-      'in an `options` text field. The document loads nothing over the network and runs no ' +
-      'scripts: embed images, fonts and stylesheets as data: URIs.',
+      'The request as a JSON body. A multipart/form-data request (the console sends one) ' +
+      'carries this object JSON-encoded in a single `options` text field, and no files. ' +
+      'The document loads nothing over the network and runs no scripts: embed images, ' +
+      'fonts and stylesheets as data: URIs.',
     schema: openApiSchema(schema, 'input'),
   } as ApiBodyOptions;
 }
@@ -55,7 +56,7 @@ export class RenderController {
   @HttpCode(200)
   @UseInterceptors(FileInterceptor('_unused'))
   @ApiOperation({ summary: 'Render HTML to PDF through the private Chromium worker' })
-  @ApiConsumes('application/json', 'multipart/form-data')
+  @ApiConsumes('application/json')
   @ApiBody(requestBody(HtmlToPdfRequestSchema))
   @ApiOkResponse(RENDERED)
   async html(
@@ -77,7 +78,7 @@ export class RenderController {
   @HttpCode(200)
   @UseInterceptors(FileInterceptor('_unused'))
   @ApiOperation({ summary: 'Render Markdown to PDF through the private Chromium worker' })
-  @ApiConsumes('application/json', 'multipart/form-data')
+  @ApiConsumes('application/json')
   @ApiBody(requestBody(MarkdownToPdfRequestSchema))
   @ApiOkResponse(RENDERED)
   async markdown(
