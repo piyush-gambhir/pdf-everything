@@ -221,6 +221,10 @@ function sharedBrowser(executablePath: string): SharedBrowser {
   if (shared) discard(shared);
 
   const kill = new AbortController();
+  // Puppeteer's `timeout` does not bound a pipe connection's first DevTools
+  // commands, so the whole launch is bounded here: Chromium is killed and the
+  // launch rejects.
+  const gaveUp = setTimeout(() => kill.abort(), LAUNCH_TIMEOUT_MS);
   const entry: SharedBrowser = {
     executablePath,
     kill,
@@ -241,28 +245,44 @@ function sharedBrowser(executablePath: string): SharedBrowser {
   // A browser that dies or never starts is relaunched by the next render.
   entry.browser.then(
     (browser) => {
+      clearTimeout(gaveUp);
       browser.once('disconnected', () => discard(entry));
       if (!browser.connected) discard(entry);
     },
-    () => discard(entry),
+    () => {
+      clearTimeout(gaveUp);
+      discard(entry);
+    },
   );
   return entry;
 }
 
 /**
- * A new page on the shared browser. A browser that failed to start (a warm-up
- * frozen with its Lambda environment times out on thaw) or has died, even one
- * whose death Puppeteer has yet to notice, is replaced once.
+ * A new page on the shared browser, tried twice. A browser that failed to
+ * start (a warm-up frozen with its Lambda environment times out on thaw) is
+ * launched again. One that cannot open a page is replaced: it has died, perhaps
+ * unnoticed yet, or it left a half-made page that would outlive the render. A
+ * render its deadline has abandoned starts nothing new.
  */
-async function openPage(executablePath: string): Promise<{ page: Page; entry: SharedBrowser }> {
+async function openPage(
+  executablePath: string,
+  abandoned: () => boolean,
+): Promise<{ page: Page; entry: SharedBrowser }> {
   for (let attempt = 1; ; attempt++) {
     const entry = sharedBrowser(executablePath);
+    let browser: Browser;
     try {
-      return { page: await (await entry.browser).newPage(), entry };
+      browser = await entry.browser;
     } catch (error) {
-      const browser = await entry.browser.catch(() => undefined);
-      if (attempt === 2 || browser?.connected) throw error;
+      if (attempt === 2 || abandoned()) throw error;
+      continue;
+    }
+    if (abandoned()) throw new Error('The render was abandoned.');
+    try {
+      return { page: await browser.newPage(), entry };
+    } catch (error) {
       discard(entry);
+      if (attempt === 2 || abandoned()) throw error;
     }
   }
 }
@@ -353,7 +373,7 @@ export async function renderHtmlToPdf(
   let finished = false;
 
   const render = async (): Promise<Buffer> => {
-    const { page, entry } = await openPage(executablePath);
+    const { page, entry } = await openPage(executablePath, () => finished);
     if (finished) {
       // The deadline passed while the page was opening.
       void closePage(page, entry);
