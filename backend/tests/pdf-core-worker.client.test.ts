@@ -182,6 +182,19 @@ describe('worker deadlines', () => {
     });
   });
 
+  it.each(['60000.5', '9999999999', 'soon'])(
+    'keeps the default deadline for a configured %s',
+    async (value) => {
+      vi.stubEnv('PDF_RENDER_WORKER_TIMEOUT_MS', value);
+      const client = await import('../src/workers/pdf-render-worker.client.js');
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response(Buffer.from('%PDF-test'), { status: 200 })),
+      );
+      await expect(client.renderHtml(html)).resolves.toEqual(Buffer.from('%PDF-test'));
+    },
+  );
+
   it('answers 504 when the core worker does not answer in time', async () => {
     vi.stubEnv('PDF_CORE_WORKER_TIMEOUT_MS', '20');
     const client = await import('../src/workers/pdf-core-worker.client.js');

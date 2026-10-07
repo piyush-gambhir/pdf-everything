@@ -15,7 +15,7 @@ import type {
   SplitOptions,
   WatermarkOptions,
 } from '@pdf-everything/types';
-import { positiveNumber } from '../common/env.js';
+import { timerMs } from '../common/env.js';
 
 type WorkerResult =
   | { kind: 'pdf'; data: string; meta?: Record<string, unknown> }
@@ -40,7 +40,7 @@ const workerOrigin = (process.env.PDF_CORE_WORKER_URL ?? 'http://127.0.0.1:8020'
 );
 const workerToken = process.env.PDF_CORE_WORKER_TOKEN?.trim();
 /** The whole exchange with the worker, response body included. */
-const workerTimeoutMs = positiveNumber(process.env.PDF_CORE_WORKER_TIMEOUT_MS) ?? 120_000;
+const workerTimeoutMs = timerMs(process.env.PDF_CORE_WORKER_TIMEOUT_MS) ?? 120_000;
 
 async function execute(
   operation: string,

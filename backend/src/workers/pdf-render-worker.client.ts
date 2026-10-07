@@ -1,5 +1,5 @@
 import type { HtmlToPdfRequest, MarkdownToPdfRequest } from '@pdf-everything/types';
-import { positiveNumber } from '../common/env.js';
+import { timerMs } from '../common/env.js';
 
 export class PdfRenderWorkerError extends Error {
   constructor(
@@ -22,7 +22,7 @@ const workerToken = process.env.PDF_RENDER_WORKER_TOKEN?.trim();
  * worker's own 50-second render deadline plus page cleanup, so a slow render
  * normally ends with the worker's answer rather than this one.
  */
-const workerTimeoutMs = positiveNumber(process.env.PDF_RENDER_WORKER_TIMEOUT_MS) ?? 60_000;
+const workerTimeoutMs = timerMs(process.env.PDF_RENDER_WORKER_TIMEOUT_MS) ?? 60_000;
 
 async function render(path: 'html' | 'markdown', body: unknown): Promise<Buffer> {
   const signal = AbortSignal.timeout(workerTimeoutMs);
