@@ -10,7 +10,7 @@ estimates unless marked as measured.
 
 - Lambda deploys keep the function's environment, memory and timeout, deploy
   by verified digest, publish a version and can move an alias
-  (`scripts/deploy-lambda.sh`).
+  (`workers/pdf-worker/scripts/deploy-lambda.sh`).
 - Markdown template titles are escaped.
 - Docs say what is true today: remote assets are blocked, the gateway has no
   authentication or quotas, responses are buffered, and Swagger documents the
@@ -49,8 +49,8 @@ estimates unless marked as measured.
   reset, retained page; cold, warm and relaunch cases.
 - **Why:** warm BCT renders take 0.6–0.7 s on Lambda (owner-supplied), but no
   phase measurement existed before the timing line, and the cost of a fresh
-  context per render (about 0.7 s on Lambda) was measured once while
-  debugging, not benchmarked. CPU scales with memory (about one vCPU at
+  context per render (about 0.7 s on Lambda) is a code comment from the
+  October Lambda debugging, not a benchmarked or reproduced result. CPU scales with memory (about one vCPU at
   1,769 MB).
 - **Gain:** pick memory by cost per successful render (at 0.65 s on 2,048 MB,
   3,072 MB must reach 0.433 s to break even); set `MAX_ACTIVE_RENDERS` from
@@ -141,14 +141,20 @@ estimates unless marked as measured.
 
 ### 7. Core PDF correctness fixes and a document corpus
 
-- **What:** fix watermark anchoring (`core/edit/watermark.ts`), annotation and
-  box handling in page-size conversion, crop geometry for non-zero origins and
+- **What:** fix watermark anchoring
+  (`workers/pdf-core-worker/core/edit/watermark.ts`), annotation and box
+  handling in page-size conversion, crop geometry for non-zero origins and
   rotation, Unicode text in overlays and form appearances, multi-select
   dropdown extraction, page-number semantics, and text extraction spacing;
-  add a corpus of real PDFs (forms, links, outlines, tags, rotated pages,
-  encrypted and signed files).
-- **Why:** reproduced by reading the code; current tests check presence and
-  dimensions, not placement or preservation.
+  in images-to-PDF, honor EXIF orientation, downsample to the output size and
+  DPI, and define an alpha background; add a corpus of real PDFs (forms,
+  links, outlines, tags, rotated pages, encrypted and signed files) and
+  images (rotated, transparent, very large).
+- **Why:** found by reading the code; current tests check presence and
+  dimensions, not placement or preservation. Images-to-PDF embeds JPEG and PNG
+  at full resolution and converts other formats to JPEG at quality 90, with
+  no orientation or alpha policy
+  (`workers/pdf-core-worker/core/convert-to/images-to-pdf.ts`).
 - **Gain:** correct output, and documented behavior for what is not
   supported (cropping is not redaction; rewriting invalidates signatures).
 - **Effort:** 3–5 days to start.
@@ -163,7 +169,7 @@ estimates unless marked as measured.
   a small reference; the core protocol moves to binary or object references
   where file sizes warrant it.
 - **Why:** the Lambda image caps PDFs at 4 MiB to fit a buffered, base64
-  response (`deploy/lambda/Dockerfile`); gateway `?output=ref` stores a PDF
+  response (`workers/pdf-worker/deploy/lambda/Dockerfile`); gateway `?output=ref` stores a PDF
   only after receiving it, so it cannot lift that cap; base64 adds a third
   and several copies (a synthetic 25 MiB core round trip retained about
   209 MiB).
@@ -180,19 +186,23 @@ estimates unless marked as measured.
   publish the images that were tested instead of rebuilding them, share the
   browser runtime layers between the standard and Lambda images, pin the
   gateway and core base images and the pruning tool by digest, attach SBOMs,
-  attest per-platform manifests, and add root build inputs to the workflow
-  path filters.
+  attest per-platform manifests, scan images for vulnerabilities, pin GitHub
+  Actions by commit SHA, set a renderer security-update cadence, and add root
+  build inputs to the workflow path filters.
 - **Why:** publishing rebuilds four variants after verification
   (`.github/workflows/publish-worker-images.yml`); base images and the global
-  `turbo@^2` are mutable (`backend/Dockerfile`); root `package.json`,
-  `tsconfig.base.json`, `turbo.json` and `.dockerignore` do not trigger the
-  workflows.
+  `turbo@^2` are mutable (`backend/Dockerfile`); actions are referenced by
+  tag; there is no image scan or SBOM; exact Chromium pinning holds only while
+  Alpine keeps that package version, and font packages float; root
+  `package.json`, `tsconfig.base.json`, `turbo.json` and `.dockerignore` do
+  not trigger the workflows.
 - **Gain:** faster publishing (unmeasured), fewer mutable inputs, verifiable
   artifacts.
 - **Effort:** 2–4 days.
 - **Risk:** native runner availability; release migration.
 - **Depends on:** nothing.
-- **Owner question:** none beyond priority.
+- **Owner question:** how quickly must a Chromium security release reach the
+  published images and BCT's function?
 
 ## Longer term, driven by workload
 
