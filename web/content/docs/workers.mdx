@@ -98,8 +98,11 @@ Treat documents and HTML as untrusted:
 - use platform isolation because Chromium runs with `--no-sandbox` inside the
   container.
 
-The current Chromium worker allows remote images, fonts, and stylesheets. Add an
-egress allowlist or proxy before accepting arbitrary multi-tenant HTML.
+The Chromium worker fetches nothing: a document loads only `data:` URIs, every
+other request (images, fonts, stylesheets, frames, refreshes) is refused, and
+page scripts do not run. Embed a document's assets as `data:` URIs. Keep the
+platform egress policy anyway; it is the layer that still holds if Chromium
+itself is compromised.
 
 ## Lambda suitability
 

@@ -23,10 +23,15 @@ Nest owns the stable `/api/v1/**` contract:
 
 - multipart uploads and stored file references;
 - request validation and problem responses;
-- public authentication, quotas, and rate limits when configured;
 - file persistence and multi-file result metadata;
 - routing requests to the correct execution worker;
-- streaming the final response to the caller.
+- returning the result: the file in the response body, or with `?output=ref`
+  a stored file reference. Results are buffered in memory, not streamed.
+
+Nest has no caller authentication, tenant ownership of stored files, quotas, or
+rate limits, and its CORS policy accepts any origin. Keep it private, or put an
+authenticating proxy with rate limits in front of it, before exposing it to the
+internet. Worker tokens protect only the Nest-to-worker hop.
 
 Nest does not import `pdf-lib`, `pdfjs-dist`, `sharp`, or Chromium. A worker
 failure therefore cannot load native PDF dependencies into the public API

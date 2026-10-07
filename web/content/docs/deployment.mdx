@@ -203,8 +203,8 @@ on a normal container platform until an S3-reference job adapter is added.
 
 Prefer `FUNCTION_URL_AUTH=AWS_IAM` for a private Nest-to-worker call. If you use
 `NONE`, configure `API_TOKEN` and put rate limiting in front of the Function
-URL. Never expose an unauthenticated renderer that can fetch arbitrary remote
-resources.
+URL. Never expose an unauthenticated renderer: anyone could spend its Chromium
+capacity.
 
 ## Persistent files
 

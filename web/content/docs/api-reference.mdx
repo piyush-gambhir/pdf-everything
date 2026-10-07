@@ -206,6 +206,11 @@ Shared PDF options:
 
 Markdown adds `template: "github" | "academic" | "rca"` and an optional title.
 
+Send the fields as a JSON body, or as `multipart/form-data` with the same
+object JSON-encoded in an `options` text field. The renderer loads nothing over
+the network and runs no page scripts: embed images, fonts, and stylesheets as
+`data:` URIs.
+
 ## Errors
 
 Failures are JSON problem documents:

@@ -251,8 +251,7 @@ account. Grant the accessor role to the service's configured identity instead
 if it uses a dedicated service account.
 
 The script defaults to 2 GiB memory, one CPU, 60 seconds, concurrency `2`, and
-zero minimum instances. Increase the timeout for documents that load slow
-remote assets. Set a minimum instance if cold-start latency matters.
+zero minimum instances. Set a minimum instance if cold-start latency matters.
 
 ## Deploy to AWS Lambda
 

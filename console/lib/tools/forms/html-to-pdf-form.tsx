@@ -33,7 +33,7 @@ export function HtmlToPdfOptionsForm({
           placeholder="<!doctype html><html>…</html>"
         />
         <div className="ui-micro mt-1.5 flex items-center justify-between gap-3 text-muted-foreground">
-          <span>Inline critical CSS and use absolute asset URLs.</span>
+          <span>Remote URLs are not loaded: embed CSS, images and fonts.</span>
           <span className="shrink-0 font-mono">
             {value.html.length.toLocaleString()} chars
           </span>

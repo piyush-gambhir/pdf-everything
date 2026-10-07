@@ -89,7 +89,7 @@ curl --fail -X POST "$API_ORIGIN/api/v1/render/markdown" \
 
 ## Return a file reference
 
-Most single-output PDF endpoints stream the file by default. Add `?output=ref`
+Most single-output PDF endpoints return the file in the response body by default. Add `?output=ref`
 to store the result temporarily and receive metadata instead:
 
 ```bash
