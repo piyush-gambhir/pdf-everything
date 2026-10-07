@@ -28,15 +28,22 @@ console after changing them.
 
 ## Nest API
 
-| Variable                  | Default                 | Purpose                                  |
-| ------------------------- | ----------------------- | ---------------------------------------- |
-| `API_PORT`                | `3001`                  | Public HTTP port                         |
-| `STORAGE_DIR`             | `./storage`             | Temporary local file directory           |
-| `FILE_TTL_HOURS`          | `24`                    | Stored-file lifetime                     |
-| `PDF_CORE_WORKER_URL`     | `http://127.0.0.1:8020` | Core worker origin                       |
-| `PDF_CORE_WORKER_TOKEN`   | unset                   | Bearer token sent to the core worker     |
-| `PDF_RENDER_WORKER_URL`   | `http://127.0.0.1:8010` | Chromium worker origin                   |
-| `PDF_RENDER_WORKER_TOKEN` | unset                   | Bearer token sent to the Chromium worker |
+| Variable                       | Default                 | Purpose                                                 |
+| ------------------------------ | ----------------------- | ------------------------------------------------------- |
+| `API_PORT`                     | `3001`                  | Public HTTP port                                        |
+| `STORAGE_DIR`                  | `./storage`             | Temporary local file directory                          |
+| `FILE_TTL_HOURS`               | `24`                    | Stored-file lifetime                                    |
+| `PDF_CORE_WORKER_URL`          | `http://127.0.0.1:8020` | Core worker origin                                      |
+| `PDF_CORE_WORKER_TOKEN`        | unset                   | Bearer token sent to the core worker                    |
+| `PDF_RENDER_WORKER_URL`        | `http://127.0.0.1:8010` | Chromium worker origin                                  |
+| `PDF_RENDER_WORKER_TOKEN`      | unset                   | Bearer token sent to the Chromium worker                |
+| `MAX_UPLOAD_MB`                | `100`                   | Largest multipart request, and each file or field in it |
+| `PDF_CORE_WORKER_TIMEOUT_MS`   | `120000`                | Deadline for a core worker exchange (then `504`)        |
+| `PDF_RENDER_WORKER_TIMEOUT_MS` | `60000`                 | Deadline for a render worker exchange (then `504`)      |
+
+Uploads are held in memory until a worker answers. A multipart request larger
+than `MAX_UPLOAD_MB` is refused with `413` before it is read, and one that does
+not declare its `Content-Length` with `411`. The render routes accept no files.
 
 `FILE_TTL_HOURS` must be positive. Expired files stop being accessible immediately;
 the API removes expired references and unreferenced content at startup and every
@@ -48,22 +55,24 @@ cannot read a file created by another replica.
 
 ## PDF core worker
 
-| Variable            | Default     | Purpose                                   |
-| ------------------- | ----------- | ----------------------------------------- |
-| `PORT`              | `8020`      | Worker HTTP port                          |
-| `WORKER_API_TOKEN`  | unset       | Bearer token required on execution routes |
-| `MAX_REQUEST_BYTES` | `157286400` | Maximum internal JSON request body        |
+| Variable                | Default     | Purpose                                        |
+| ----------------------- | ----------- | ---------------------------------------------- |
+| `PORT`                  | `8020`      | Worker HTTP port                               |
+| `WORKER_API_TOKEN`      | unset       | Bearer token required on execution routes      |
+| `MAX_REQUEST_BYTES`     | `157286400` | Maximum internal JSON request body             |
+| `MAX_ACTIVE_OPERATIONS` | `2`         | Operations at once; more get `503 worker_busy` |
 
 `WORKER_API_TOKEN` must match `PDF_CORE_WORKER_TOKEN` on Nest.
 
 ## Chromium worker
 
-| Variable                    | Default       | Purpose                                |
-| --------------------------- | ------------- | -------------------------------------- |
-| `PORT`                      | `8010`        | Worker HTTP port                       |
-| `API_TOKEN`                 | unset         | Bearer token required on render routes |
-| `MAX_REQUEST_BYTES`         | `5242880`     | Maximum JSON body                      |
-| `PUPPETEER_EXECUTABLE_PATH` | auto-detected | Chromium executable                    |
+| Variable                    | Default       | Purpose                                     |
+| --------------------------- | ------------- | ------------------------------------------- |
+| `PORT`                      | `8010`        | Worker HTTP port                            |
+| `API_TOKEN`                 | unset         | Bearer token required on render routes      |
+| `MAX_REQUEST_BYTES`         | `5242880`     | Maximum JSON body                           |
+| `MAX_ACTIVE_RENDERS`        | `4`           | Renders at once; more get `503 worker_busy` |
+| `PUPPETEER_EXECUTABLE_PATH` | auto-detected | Chromium executable                         |
 
 `API_TOKEN` must match `PDF_RENDER_WORKER_TOKEN` on Nest.
 

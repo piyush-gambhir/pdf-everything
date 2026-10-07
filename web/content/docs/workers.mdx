@@ -8,11 +8,11 @@ normally call Nest, not a worker directly.
 
 ## Published images
 
-| Runtime             | Public image                                              | Architectures                  |
-| ------------------- | --------------------------------------------------------- | ------------------------------ |
-| PDF core            | `ghcr.io/piyush-gambhir/pdf-everything-pdf-core-worker`   | image workflow target          |
-| Chromium            | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker`        | `linux/amd64`, `linux/arm64`   |
-| Chromium for Lambda | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda` | `linux/amd64`, `linux/arm64`   |
+| Runtime             | Public image                                              | Architectures                |
+| ------------------- | --------------------------------------------------------- | ---------------------------- |
+| PDF core            | `ghcr.io/piyush-gambhir/pdf-everything-pdf-core-worker`   | image workflow target        |
+| Chromium            | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker`        | `linux/amd64`, `linux/arm64` |
+| Chromium for Lambda | `ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda` | `linux/amd64`, `linux/arm64` |
 
 Use `sha-<commit>` tags or image digests in production. `latest` follows the
 newest successful `main` build.
@@ -31,12 +31,13 @@ The core worker owns all seventeen file-based operations and listens on port
 
 Configuration:
 
-| Worker variable     | Nest variable           | Default                 |
-| ------------------- | ----------------------- | ----------------------- |
-| `PORT`              | —                       | `8020`                  |
-| `WORKER_API_TOKEN`  | `PDF_CORE_WORKER_TOKEN` | unset                   |
-| —                   | `PDF_CORE_WORKER_URL`   | `http://127.0.0.1:8020` |
-| `MAX_REQUEST_BYTES` | —                       | `157286400`             |
+| Worker variable         | Nest variable           | Default                 |
+| ----------------------- | ----------------------- | ----------------------- |
+| `PORT`                  | —                       | `8020`                  |
+| `WORKER_API_TOKEN`      | `PDF_CORE_WORKER_TOKEN` | unset                   |
+| —                       | `PDF_CORE_WORKER_URL`   | `http://127.0.0.1:8020` |
+| `MAX_REQUEST_BYTES`     | —                       | `157286400`             |
+| `MAX_ACTIVE_OPERATIONS` | —                       | `2`                     |
 
 Nest currently sends file bytes as base64 inside the internal JSON protocol.
 Keep this hop on a private, low-latency network. For an object-storage job

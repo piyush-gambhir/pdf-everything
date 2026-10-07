@@ -13,10 +13,18 @@ import {
 // input plus envelope overhead; the gateway needs its own upload limits.
 const DEFAULT_MAX_REQUEST_BYTES = 150 * 1024 * 1024;
 
+/**
+ * Operations one process runs at once. They share one event loop, so more at
+ * once adds no throughput, only the memory of every decoded input and output.
+ */
+const DEFAULT_MAX_ACTIVE_OPERATIONS = 2;
+
 export interface CoreWorkerServerOptions {
   port: number;
   apiToken: string | null;
   maxRequestBytes?: number;
+  /** Operations at once; one more is refused with 503 (default 2). */
+  maxActiveOperations?: number;
 }
 
 class RequestTooLargeError extends Error {}
@@ -90,6 +98,8 @@ function sendError(res: ServerResponse, error: unknown): void {
 
 export function createCoreWorkerServer(options: CoreWorkerServerOptions): Promise<Server> {
   const maxBytes = options.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
+  const maxActive = options.maxActiveOperations ?? DEFAULT_MAX_ACTIVE_OPERATIONS;
+  let active = 0;
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
@@ -121,6 +131,16 @@ export function createCoreWorkerServer(options: CoreWorkerServerOptions): Promis
       return;
     }
 
+    // Refused before the body is read, so a burst holds no memory either.
+    if (active >= maxActive) {
+      res.setHeader('Retry-After', '1');
+      json(res, 503, {
+        error: 'worker_busy',
+        message: `${maxActive} operations are already running; retry shortly.`,
+      });
+      return;
+    }
+    active++;
     try {
       const request = decodeRequest(JSON.parse(await readBody(req, maxBytes)));
       const result: ExecuteResult = await executeOperation(
@@ -131,6 +151,8 @@ export function createCoreWorkerServer(options: CoreWorkerServerOptions): Promis
       json(res, 200, result);
     } catch (error) {
       sendError(res, error);
+    } finally {
+      active--;
     }
   });
 

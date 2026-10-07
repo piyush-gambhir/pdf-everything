@@ -78,6 +78,7 @@ to the HTTP response. It does not need a database or persistent volume.
 | `PORT`                      | `8010`        | HTTP listen port                       |
 | `API_TOKEN`                 | unset         | Bearer token required on render routes |
 | `MAX_REQUEST_BYTES`         | `5242880`     | Maximum JSON request-body size         |
+| `MAX_ACTIVE_RENDERS`        | `4`           | Renders at once (see below)            |
 | `PUPPETEER_EXECUTABLE_PATH` | image-defined | Chromium binary path                   |
 
 Routes:
@@ -121,6 +122,12 @@ The worker treats every document as untrusted and renders it sealed:
   (default 50 s) end a render with `422 page_limit_exceeded`,
   `422 output_too_large` or `504 render_timeout`. A successful response carries
   the page count in `X-PDF-Page-Count`.
+- **Admission.** At most `MAX_ACTIVE_RENDERS` renders (default 4) run at
+  once; one more is answered at once with `503 worker_busy` and
+  `Retry-After: 1`, before its body is read. A render frees its slot before
+  its response is written, so a caller that sends one request at a time (a
+  Lambda environment, which takes one invocation at a time) is never refused.
+  Set it at or above the platform's per-instance concurrency.
 
 Platform controls still matter:
 

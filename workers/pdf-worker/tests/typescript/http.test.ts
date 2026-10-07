@@ -290,6 +290,53 @@ describe('HTTP render options', () => {
   });
 });
 
+describe('HTTP admission', () => {
+  let server: Server;
+  let origin: string;
+
+  beforeAll(async () => {
+    server = await createHttpServer({ port: 0, apiToken: null, maxActiveRenders: 1 });
+    origin = getServerOrigin(server);
+  });
+
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const renderHtml = () =>
+    request(origin, '/v1/render/html', {
+      method: 'POST',
+      body: JSON.stringify({ html: '<p>Hello</p>' }),
+      headers: jsonHeaders,
+    });
+
+  it('refuses a render past the cap with 503, and takes the next once the slot frees', async () => {
+    let finish: ((pdf: Buffer) => void) | undefined;
+    vi.mocked(renderHtmlToPdf).mockImplementationOnce(
+      () => new Promise<Buffer>((resolve) => (finish = resolve)),
+    );
+    const first = renderHtml();
+    await vi.waitFor(() => expect(finish).toBeDefined());
+
+    const refused = await renderHtml();
+    expect(refused.status).toBe(503);
+    expect(refused.headers.get('retry-after')).toBe('1');
+    expect(await refused.json()).toMatchObject({ error: 'worker_busy' });
+
+    finish!(Buffer.from('%PDF-1.4 first'));
+    expect((await first).status).toBe(200);
+    expect((await renderHtml()).status).toBe(200);
+  });
+
+  it('never refuses renders sent one at a time, failed ones included', async () => {
+    vi.mocked(renderHtmlToPdf).mockRejectedValueOnce(
+      new RenderLimitError('render_timeout', 'late'),
+    );
+    expect((await renderHtml()).status).toBe(504);
+    vi.mocked(renderHtmlToPdf).mockRejectedValueOnce(new Error('Chromium crashed.'));
+    expect((await renderHtml()).status).toBe(500);
+    for (let i = 0; i < 5; i++) expect((await renderHtml()).status).toBe(200);
+  });
+});
+
 describe('HTTP server with authentication', () => {
   let server: Server;
   let origin: string;

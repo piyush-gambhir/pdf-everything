@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { UploadLimitsModule } from './common/upload-limits.js';
 import { FilesModule } from './files/files.module.js';
 import { OrganizeModule } from './modules/organize/organize.module.js';
 import { EditModule } from './modules/edit/edit.module.js';
@@ -12,6 +13,7 @@ import { HealthController } from './health.controller.js';
 @Module({
   controllers: [HealthController],
   imports: [
+    UploadLimitsModule,
     FilesModule,
     OrganizeModule,
     EditModule,

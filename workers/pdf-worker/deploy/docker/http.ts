@@ -5,13 +5,22 @@ import {
   prepareBrowser,
   renderHtmlToPdf,
   resolveChromiumPath,
+  type HtmlRenderOptions,
   type RenderLimits,
 } from '../../core/html.js';
-import { renderMarkdownToPdf } from '../../core/markdown.js';
+import { renderMarkdownToPdf, type MarkdownRenderOptions } from '../../core/markdown.js';
 import { InvalidOptionsError, parseHtmlOptions, parseMarkdownOptions } from '../../core/options.js';
 import { TEMPLATE_NAMES } from '../../core/templates/index.js';
 
 const DEFAULT_MAX_REQUEST_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Renders one process runs at once. Each is a page in the shared Chromium, so
+ * a burst would otherwise open pages without bound and exhaust memory. Lambda
+ * sends one request at a time and each releases its slot before its response
+ * is written, so one-at-a-time callers are never refused.
+ */
+const DEFAULT_MAX_ACTIVE_RENDERS = 4;
 
 class RequestTooLargeError extends Error {}
 
@@ -27,6 +36,8 @@ export interface HttpServerOptions {
   maxRequestBytes?: number;
   /** Page, size and time bounds for every render (defaults: DEFAULT_LIMITS). */
   limits?: Partial<RenderLimits>;
+  /** Renders at once; one more is refused with 503 (default 4). */
+  maxActiveRenders?: number;
 }
 
 const LIMIT_STATUS: Record<RenderLimitError['code'], number> = {
@@ -66,17 +77,6 @@ function readBody(req: IncomingMessage, maxBytes: number): Promise<string> {
   });
 }
 
-/** Validate request options, answering 400 when they are refused. */
-function parsedOptions<T>(res: ServerResponse, parse: () => T): T | null {
-  try {
-    return parse();
-  } catch (error) {
-    const message = error instanceof InvalidOptionsError ? error.message : 'Invalid options.';
-    json(res, 400, { error: 'bad_request', message });
-    return null;
-  }
-}
-
 function unauthorized(res: ServerResponse) {
   json(res, 401, {
     error: 'unauthorized',
@@ -88,30 +88,109 @@ function isAuthorized(req: IncomingMessage, apiToken: string | null): boolean {
   return !apiToken || req.headers.authorization?.trim() === `Bearer ${apiToken}`;
 }
 
-async function sendPdf(res: ServerResponse, render: () => Promise<Buffer>) {
+/** The answer to a render request, decided before anything is written. */
+type Reply = { status: number; body: unknown } | { pdf: Buffer };
+
+function bad(message: string): Reply {
+  return { status: 400, body: { error: 'bad_request', message } };
+}
+
+/** Options the request may not set are a 400. */
+function refusedOptions(error: unknown): Reply {
+  return bad(error instanceof InvalidOptionsError ? error.message : 'Invalid options.');
+}
+
+async function rendered(render: () => Promise<Buffer>): Promise<Reply> {
   try {
-    const pdf = await render();
-    res.writeHead(200, {
-      'Content-Type': 'application/pdf',
-      'Content-Length': pdf.length,
-      'Cache-Control': 'no-store',
-      'X-PDF-Page-Count': String(countPdfPages(pdf)),
-    });
-    res.end(pdf);
+    return { pdf: await render() };
   } catch (error) {
     if (error instanceof RenderLimitError) {
-      json(res, LIMIT_STATUS[error.code], { error: error.code, message: error.message });
-      return;
+      return {
+        status: LIMIT_STATUS[error.code],
+        body: { error: error.code, message: error.message },
+      };
     }
     const message = error instanceof Error ? error.message : 'render_failed';
-    json(res, 500, { error: 'render_failed', message });
+    return { status: 500, body: { error: 'render_failed', message } };
   }
+}
+
+function send(res: ServerResponse, reply: Reply): void {
+  if ('status' in reply) {
+    json(res, reply.status, reply.body);
+    return;
+  }
+  res.writeHead(200, {
+    'Content-Type': 'application/pdf',
+    'Content-Length': reply.pdf.length,
+    'Cache-Control': 'no-store',
+    'X-PDF-Page-Count': String(countPdfPages(reply.pdf)),
+  });
+  res.end(reply.pdf);
 }
 
 /** HTTP server for browser-based HTML and Markdown PDF rendering. */
 export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
   const maxRequestBytes = opts.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
+  const maxActiveRenders = opts.maxActiveRenders ?? DEFAULT_MAX_ACTIVE_RENDERS;
   const runtime = { limits: opts.limits };
+  let activeRenders = 0;
+
+  /** Read, validate and render one request. */
+  async function handleRender(req: IncomingMessage, pathname: string): Promise<Reply> {
+    let body: RenderRequest;
+    try {
+      const raw = await readBody(req, maxRequestBytes);
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return bad('Body must be a JSON object.');
+      }
+      body = parsed as RenderRequest;
+    } catch (error) {
+      if (error instanceof RequestTooLargeError) {
+        return {
+          status: 413,
+          body: {
+            error: 'payload_too_large',
+            message: `Request body exceeds ${maxRequestBytes} bytes.`,
+          },
+        };
+      }
+      return bad('Body must be valid JSON.');
+    }
+
+    const hasHtml = 'html' in body;
+    const hasMarkdown = 'markdown' in body;
+    if (hasHtml && hasMarkdown) {
+      return bad('Use exactly one input field: "html" or "markdown".');
+    }
+
+    if (pathname === '/v1/render/html') {
+      if (hasMarkdown || typeof body.html !== 'string' || body.html.length === 0) {
+        return bad('Field "html" is required and must be a non-empty string.');
+      }
+      const html = body.html;
+      let options: HtmlRenderOptions;
+      try {
+        options = parseHtmlOptions(body.options);
+      } catch (error) {
+        return refusedOptions(error);
+      }
+      return rendered(() => renderHtmlToPdf(html, options, runtime));
+    }
+
+    if (hasHtml || typeof body.markdown !== 'string' || body.markdown.length === 0) {
+      return bad('Field "markdown" is required and must be a non-empty string.');
+    }
+    const markdown = body.markdown;
+    let options: MarkdownRenderOptions;
+    try {
+      options = parseMarkdownOptions(body.options);
+    } catch (error) {
+      return refusedOptions(error);
+    }
+    return rendered(() => renderMarkdownToPdf(markdown, options, runtime));
+  }
 
   const server = createServer(async (req, res) => {
     const { pathname } = new URL(req.url ?? '/', 'http://localhost');
@@ -165,70 +244,23 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
       return;
     }
 
-    let body: RenderRequest;
-    try {
-      const raw = await readBody(req, maxRequestBytes);
-      const parsed = JSON.parse(raw) as unknown;
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        json(res, 400, { error: 'bad_request', message: 'Body must be a JSON object.' });
-        return;
-      }
-      body = parsed as RenderRequest;
-    } catch (error) {
-      if (error instanceof RequestTooLargeError) {
-        json(res, 413, {
-          error: 'payload_too_large',
-          message: `Request body exceeds ${maxRequestBytes} bytes.`,
-        });
-        return;
-      }
-      json(res, 400, { error: 'bad_request', message: 'Body must be valid JSON.' });
-      return;
-    }
-
-    const wantsHtml = pathname === '/v1/render/html';
-    const wantsMarkdown = pathname === '/v1/render/markdown';
-    const hasHtml = 'html' in body;
-    const hasMarkdown = 'markdown' in body;
-
-    if (hasHtml && hasMarkdown) {
-      json(res, 400, {
-        error: 'bad_request',
-        message: 'Use exactly one input field: "html" or "markdown".',
+    // Refused before the body is read, so a burst holds no memory either.
+    if (activeRenders >= maxActiveRenders) {
+      res.setHeader('Retry-After', '1');
+      json(res, 503, {
+        error: 'worker_busy',
+        message: `${maxActiveRenders} renders are already running; retry shortly.`,
       });
       return;
     }
-
-    if (wantsHtml) {
-      if (hasMarkdown || typeof body.html !== 'string' || body.html.length === 0) {
-        json(res, 400, {
-          error: 'bad_request',
-          message: 'Field "html" is required and must be a non-empty string.',
-        });
-        return;
-      }
-      const html = body.html;
-      const options = parsedOptions(res, () => parseHtmlOptions(body.options));
-      if (!options) return;
-      await sendPdf(res, () => renderHtmlToPdf(html, options, runtime));
-      return;
+    activeRenders++;
+    let reply: Reply;
+    try {
+      reply = await handleRender(req, pathname);
+    } finally {
+      activeRenders--;
     }
-
-    if (wantsMarkdown) {
-      if (hasHtml || typeof body.markdown !== 'string' || body.markdown.length === 0) {
-        json(res, 400, {
-          error: 'bad_request',
-          message: 'Field "markdown" is required and must be a non-empty string.',
-        });
-        return;
-      }
-
-      const markdown = body.markdown;
-      const options = parsedOptions(res, () => parseMarkdownOptions(body.options));
-      if (!options) return;
-      await sendPdf(res, () => renderMarkdownToPdf(markdown, options, runtime));
-      return;
-    }
+    send(res, reply);
   });
 
   return new Promise<Server>((resolve, reject) => {

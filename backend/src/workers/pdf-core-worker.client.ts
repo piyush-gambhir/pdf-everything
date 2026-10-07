@@ -15,6 +15,7 @@ import type {
   SplitOptions,
   WatermarkOptions,
 } from '@pdf-everything/types';
+import { positiveNumber } from '../common/env.js';
 
 type WorkerResult =
   | { kind: 'pdf'; data: string; meta?: Record<string, unknown> }
@@ -38,12 +39,21 @@ const workerOrigin = (process.env.PDF_CORE_WORKER_URL ?? 'http://127.0.0.1:8020'
   '',
 );
 const workerToken = process.env.PDF_CORE_WORKER_TOKEN?.trim();
+/** The whole exchange with the worker, response body included. */
+const workerTimeoutMs = positiveNumber(process.env.PDF_CORE_WORKER_TIMEOUT_MS) ?? 120_000;
 
 async function execute(
   operation: string,
   files: Array<Buffer | Uint8Array>,
   options: unknown = {},
 ): Promise<WorkerResult> {
+  const signal = AbortSignal.timeout(workerTimeoutMs);
+  const timedOut = () =>
+    new PdfCoreWorkerError(
+      'worker_timeout',
+      504,
+      `The PDF core worker did not answer within ${workerTimeoutMs} ms.`,
+    );
   let response: Response;
   try {
     response = await fetch(`${workerOrigin}/v1/execute/${operation}`, {
@@ -56,8 +66,10 @@ async function execute(
         files: files.map((file) => Buffer.from(file).toString('base64')),
         options,
       }),
+      signal,
     });
   } catch (error) {
+    if (signal.aborted) throw timedOut();
     throw new PdfCoreWorkerError(
       'worker_unavailable',
       503,
@@ -67,6 +79,7 @@ async function execute(
 
   const body = (await response.json().catch(() => null)) as
     WorkerResult | { error?: string; message?: string } | null;
+  if (signal.aborted) throw timedOut();
   if (!response.ok) {
     const problem = body && 'error' in body ? body : null;
     throw new PdfCoreWorkerError(

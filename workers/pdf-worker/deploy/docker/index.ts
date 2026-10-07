@@ -14,6 +14,7 @@ const server = await createHttpServer({
   port,
   apiToken,
   maxRequestBytes: positiveInteger('MAX_REQUEST_BYTES'),
+  maxActiveRenders: positiveInteger('MAX_ACTIVE_RENDERS'),
   limits: {
     maxPages: positiveInteger('MAX_PDF_PAGES'),
     maxOutputBytes: positiveInteger('MAX_PDF_BYTES'),

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mergePdfs, PdfCoreWorkerError, splitPdf } from '../src/workers/pdf-core-worker.client.js';
 import {
   PdfRenderWorkerError,
@@ -128,5 +128,67 @@ describe('Nest PDF core worker client', () => {
     await expect(mergePdfs([Buffer.from('bad')])).rejects.toEqual(
       new PdfCoreWorkerError('INVALID_PDF', 422, 'Invalid document.'),
     );
+  });
+});
+
+describe('worker deadlines', () => {
+  // Each client reads its deadline when it loads.
+  beforeEach(() => vi.resetModules());
+  afterEach(() => vi.unstubAllEnvs());
+
+  /** A fetch that never answers, as a hung worker; it ends only when aborted. */
+  const hangs = vi.fn(
+    (_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) =>
+        init?.signal?.addEventListener('abort', () => reject(init.signal?.reason)),
+      ),
+  );
+
+  const html = {
+    html: '<h1>Hello</h1>',
+    format: 'A4',
+    printBackground: true,
+    navigationTimeoutMs: 30000,
+  } as const;
+
+  it('answers 504 when the render worker does not answer in time', async () => {
+    vi.stubEnv('PDF_RENDER_WORKER_TIMEOUT_MS', '20');
+    const client = await import('../src/workers/pdf-render-worker.client.js');
+    vi.stubGlobal('fetch', hangs);
+    await expect(client.renderHtml(html)).rejects.toMatchObject({
+      code: 'render_worker_timeout',
+      status: 504,
+    });
+  });
+
+  it('answers 504 when the render worker stops sending its PDF', async () => {
+    vi.stubEnv('PDF_RENDER_WORKER_TIMEOUT_MS', '20');
+    const client = await import('../src/workers/pdf-render-worker.client.js');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('%PDF-1.4'));
+            init?.signal?.addEventListener('abort', () => controller.error(init.signal?.reason));
+          },
+        });
+        return new Response(body, { status: 200 });
+      }),
+    );
+    await expect(client.renderHtml(html)).rejects.toMatchObject({
+      code: 'render_worker_timeout',
+      status: 504,
+    });
+  });
+
+  it('answers 504 when the core worker does not answer in time', async () => {
+    vi.stubEnv('PDF_CORE_WORKER_TIMEOUT_MS', '20');
+    const client = await import('../src/workers/pdf-core-worker.client.js');
+    vi.stubGlobal('fetch', hangs);
+    await expect(client.mergePdfs([Buffer.from('first')])).rejects.toMatchObject({
+      code: 'worker_timeout',
+      status: 504,
+    });
   });
 });

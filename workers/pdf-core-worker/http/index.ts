@@ -8,7 +8,13 @@ const maxRequestBytes =
     ? configuredMaxRequestBytes
     : undefined;
 
-await createCoreWorkerServer({ port, apiToken, maxRequestBytes });
+const configuredMaxActive = Number(process.env.MAX_ACTIVE_OPERATIONS ?? '');
+const maxActiveOperations =
+  Number.isInteger(configuredMaxActive) && configuredMaxActive > 0
+    ? configuredMaxActive
+    : undefined;
+
+await createCoreWorkerServer({ port, apiToken, maxRequestBytes, maxActiveOperations });
 
 // eslint-disable-next-line no-console
 console.log(

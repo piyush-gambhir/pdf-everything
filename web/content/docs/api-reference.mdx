@@ -226,4 +226,6 @@ Failures are JSON problem documents:
 
 Treat `title` and `detail` as user-safe summaries. Do not retry validation
 errors. Retry worker-unavailable responses only with bounded exponential
-backoff.
+backoff. A `503` titled `worker_busy` means a worker is at its concurrency
+limit; a `504` means a worker did not answer within the gateway's deadline.
+Uploads above `MAX_UPLOAD_MB` (default 100) are refused with `413`.

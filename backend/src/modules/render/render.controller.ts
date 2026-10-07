@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, Post, Query, Res, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { NoFilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
   ApiConsumes,
@@ -54,7 +54,7 @@ export class RenderController {
 
   @Post('html')
   @HttpCode(200)
-  @UseInterceptors(FileInterceptor('_unused'))
+  @UseInterceptors(NoFilesInterceptor())
   @ApiOperation({ summary: 'Render HTML to PDF through the private Chromium worker' })
   @ApiConsumes('application/json')
   @ApiBody(requestBody(HtmlToPdfRequestSchema))
@@ -76,7 +76,7 @@ export class RenderController {
 
   @Post('markdown')
   @HttpCode(200)
-  @UseInterceptors(FileInterceptor('_unused'))
+  @UseInterceptors(NoFilesInterceptor())
   @ApiOperation({ summary: 'Render Markdown to PDF through the private Chromium worker' })
   @ApiConsumes('application/json')
   @ApiBody(requestBody(MarkdownToPdfRequestSchema))
