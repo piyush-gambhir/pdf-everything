@@ -52,7 +52,9 @@ Read the [documentation](web/content/docs/index.mdx) or the complete
 [deployment guide](web/content/docs/deployment.mdx).
 
 See the [maintenance review](docs/maintenance-review.md) for cleanup findings,
-remaining reliability work, and proposed feature priorities.
+remaining reliability work, and proposed feature priorities, and the
+[roadmap](docs/ROADMAP.md) for the bigger planned work, each item with its
+evidence, effort, and the owner question it needs answered.
 
 ## Verify
 
