@@ -3,6 +3,7 @@ import { academicTemplate } from './academic.js';
 import { rcaPostProcess, rcaTemplate } from './rca.js';
 
 export type TemplateName = 'github' | 'academic' | 'rca';
+/** `bodyHtml` is markup; `title` is plain text, which the template escapes. */
 export type TemplateFunction = (bodyHtml: string, title: string) => string;
 
 export const TEMPLATES: Record<TemplateName, TemplateFunction> = {

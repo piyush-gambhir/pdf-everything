@@ -29,6 +29,16 @@ describe('Markdown template registry', () => {
     expect(html).toContain('<p>Hello</p>');
   });
 
+  it.each(TEMPLATE_NAMES)('%s shows the title as text, never as markup', (name) => {
+    const title = `</title><style>body { display: none }</style><title>"A" & 'B'`;
+    const html = TEMPLATES[name]('<p>Hello</p>', title);
+    expect(html).toContain(
+      '<title>&lt;/title&gt;&lt;style&gt;body { display: none }&lt;/style&gt;&lt;title&gt;&quot;A&quot; &amp; &#39;B&#39;</title>',
+    );
+    expect(html).not.toContain('<style>body { display: none }');
+    expect(html.match(/<title>/g)).toHaveLength(1);
+  });
+
   it('the RCA template carries no page script; its markup pass is a trusted post-process', () => {
     const html = TEMPLATES.rca('<p>Hello</p>', 'Test');
     expect(html).not.toContain('<script');
