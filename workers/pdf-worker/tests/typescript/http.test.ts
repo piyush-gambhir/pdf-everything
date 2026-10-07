@@ -337,6 +337,57 @@ describe('HTTP admission', () => {
   });
 });
 
+describe('HTTP render timing log', () => {
+  let server: Server;
+  let origin: string;
+
+  beforeAll(async () => {
+    server = await createHttpServer({ port: 0, apiToken: null, logRenderTimings: true });
+    origin = getServerOrigin(server);
+  });
+
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  it('writes one JSON line per render with the timings and sizes, not the document', async () => {
+    vi.mocked(renderHtmlToPdf).mockImplementationOnce(async (_html, _options, runtime) => {
+      runtime?.onTimings?.({
+        outcome: 'ok',
+        browser: 'warm',
+        ms: { browser: 0, newPage: 9, setContent: 31, pdf: 180, validate: 1, close: 6, total: 228 },
+        pages: 1,
+        bytes: 4321,
+      });
+      return Buffer.from('%PDF-1.4');
+    });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      const body = JSON.stringify({ html: '<p>Passenger: Ada Lovelace</p>' });
+      const res = await request(origin, '/v1/render/html', {
+        method: 'POST',
+        body,
+        headers: jsonHeaders,
+      });
+      expect(res.status).toBe(200);
+      expect(log).toHaveBeenCalledOnce();
+      const line = String(log.mock.calls[0]?.[0]);
+      expect(JSON.parse(line)).toEqual({
+        level: 'info',
+        msg: 'render',
+        route: 'html',
+        outcome: 'ok',
+        browser: 'warm',
+        ms: { browser: 0, newPage: 9, setContent: 31, pdf: 180, validate: 1, close: 6, total: 228 },
+        pages: 1,
+        bytes: 4321,
+        inputBytes: Buffer.byteLength(body),
+      });
+      expect(line).not.toContain('Lovelace');
+    } finally {
+      log.mockRestore();
+    }
+  });
+});
+
 describe('HTTP server with authentication', () => {
   let server: Server;
   let origin: string;

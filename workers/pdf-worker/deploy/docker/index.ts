@@ -15,6 +15,8 @@ const server = await createHttpServer({
   apiToken,
   maxRequestBytes: positiveInteger('MAX_REQUEST_BYTES'),
   maxActiveRenders: positiveInteger('MAX_ACTIVE_RENDERS'),
+  // One timing line per render unless RENDER_TIMING_LOG is off.
+  logRenderTimings: !/^(0|false|off|no)$/i.test(process.env.RENDER_TIMING_LOG?.trim() ?? ''),
   limits: {
     maxPages: positiveInteger('MAX_PDF_PAGES'),
     maxOutputBytes: positiveInteger('MAX_PDF_BYTES'),

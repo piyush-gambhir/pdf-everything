@@ -51,9 +51,43 @@ export interface RenderRuntime {
    * adjusts its own markup.
    */
   postProcess?: () => void;
+  /** Called once per render, after its page is closed, with how it went. */
+  onTimings?: (timings: RenderTimings) => void;
 }
 
 export type RenderErrorCode = 'page_limit_exceeded' | 'output_too_large' | 'render_timeout';
+
+/**
+ * The steps of one render, in order: waiting for the shared browser, opening
+ * and arming a page, loading the document, the trusted post-process (Markdown
+ * templates), printing, checking the PDF, and closing the page.
+ */
+export type RenderPhase =
+  | 'browser'
+  | 'newPage'
+  | 'setContent'
+  | 'postProcess'
+  | 'pdf'
+  | 'validate'
+  | 'close';
+
+/**
+ * How one render went, for an operator's log: how long each step took and how
+ * big the result was. It never holds any of the document's contents.
+ */
+export interface RenderTimings {
+  /** `ok`, the limit that stopped the render, or `failed`. */
+  outcome: 'ok' | RenderErrorCode | 'failed';
+  /** The step that was running when the render failed or ran out of time. */
+  failedIn?: RenderPhase;
+  /** `warm` when Chromium was already up; `launch` when the render waited for a start. */
+  browser: 'warm' | 'launch';
+  /** Whole milliseconds spent in each step that ran, and in all. */
+  ms: Partial<Record<RenderPhase, number>> & { total: number };
+  /** The PDF's pages and bytes, once printed. */
+  pages?: number;
+  bytes?: number;
+}
 
 /** A render stopped by one of its {@link RenderLimits}. */
 export class RenderLimitError extends Error {
@@ -202,6 +236,8 @@ interface SharedBrowser {
   executablePath: string;
   browser: Promise<Browser>;
   kill: AbortController;
+  /** Set once the browser is up. */
+  ready?: boolean;
 }
 
 let shared: SharedBrowser | undefined;
@@ -255,6 +291,7 @@ function sharedBrowser(executablePath: string): SharedBrowser {
   entry.browser.then(
     (browser) => {
       clearTimeout(gaveUp);
+      entry.ready = true;
       browser.once('disconnected', () => discard(entry));
       if (!browser.connected) discard(entry);
     },
@@ -276,9 +313,11 @@ function sharedBrowser(executablePath: string): SharedBrowser {
 async function openPage(
   executablePath: string,
   abandoned: () => boolean,
+  steps: { waiting: (warm: boolean) => void; opening: () => void },
 ): Promise<{ page: Page; entry: SharedBrowser }> {
   for (let attempt = 1; ; attempt++) {
     const entry = sharedBrowser(executablePath);
+    steps.waiting(entry.ready === true);
     let browser: Browser;
     try {
       browser = await entry.browser;
@@ -287,6 +326,7 @@ async function openPage(
       continue;
     }
     if (abandoned()) throw new Error('The render was abandoned.');
+    steps.opening();
     try {
       return { page: await browser.newPage(), entry };
     } catch (error) {
@@ -381,8 +421,31 @@ export async function renderHtmlToPdf(
   let open: { page: Page; entry: SharedBrowser } | undefined;
   let finished = false;
 
+  // Each step's time, counted until the render is settled: an abandoned
+  // render that carries on cannot change what is reported.
+  const timings: RenderTimings = {
+    outcome: 'ok',
+    browser: 'warm',
+    ms: {} as RenderTimings['ms'], // `total` is set last, once the page is closed
+  };
+  let phase: RenderPhase = 'browser';
+  let phaseStart = performance.now();
+  const step = (next: RenderPhase) => {
+    if (finished) return;
+    const now = performance.now();
+    timings.ms[phase] = (timings.ms[phase] ?? 0) + Math.round(now - phaseStart);
+    phase = next;
+    phaseStart = now;
+  };
+
   const render = async (): Promise<Buffer> => {
-    const { page, entry } = await openPage(executablePath, () => finished);
+    const { page, entry } = await openPage(executablePath, () => finished, {
+      waiting: (warm) => {
+        step('browser');
+        if (!warm && !finished) timings.browser = 'launch';
+      },
+      opening: () => step('newPage'),
+    });
     if (finished) {
       // The deadline passed while the page was opening.
       void closePage(page, entry);
@@ -395,14 +458,19 @@ export async function renderHtmlToPdf(
 
     // `load` waits for the document's subresources (all data: URIs); fonts
     // that layout requests later are awaited by `page.pdf` (`waitForFonts`).
+    step('setContent');
     await page.setContent(html, {
       waitUntil: 'load',
       timeout: Math.min(resolved.navigationTimeoutMs, remainingMs()),
     });
-    if (runtime.postProcess) await page.evaluate(runtime.postProcess);
+    if (runtime.postProcess) {
+      step('postProcess');
+      await page.evaluate(runtime.postProcess);
+    }
 
     // Print at most one page past the cap: enough to detect an oversized
     // document without laying out all of it.
+    step('pdf');
     const pdf = Buffer.from(
       await page.pdf({
         format: resolved.format,
@@ -415,7 +483,10 @@ export async function renderHtmlToPdf(
       }),
     );
 
-    if (countPdfPages(pdf) > limits.maxPages) {
+    step('validate');
+    const pages = countPdfPages(pdf);
+    if (!finished) Object.assign(timings, { pages, bytes: pdf.length });
+    if (pages > limits.maxPages) {
       throw new RenderLimitError(
         'page_limit_exceeded',
         `The document has more than ${limits.maxPages} pages.`,
@@ -447,12 +518,34 @@ export async function renderHtmlToPdf(
   rendering.catch(() => undefined);
 
   try {
-    return await Promise.race([rendering, deadline]);
+    const pdf = await Promise.race([rendering, deadline]);
+    step('close');
+    return pdf;
+  } catch (error) {
+    timings.outcome = error instanceof RenderLimitError ? error.code : 'failed';
+    timings.failedIn = phase;
+    step('close');
+    throw error;
   } finally {
     finished = true;
     clearTimeout(timer);
     // Closing the page stops a render the deadline abandoned. A render still
     // waiting for the browser leaves the launch running for the next.
-    if (open) await closePage(open.page, open.entry);
+    const closing = performance.now();
+    if (open) {
+      await closePage(open.page, open.entry);
+      timings.ms.close = Math.round(performance.now() - closing);
+    }
+    timings.ms.total = Date.now() - startedAt;
+    report(runtime.onTimings, timings);
+  }
+}
+
+/** Hand the timings over; a failing logger never fails the render. */
+function report(onTimings: RenderRuntime['onTimings'], timings: RenderTimings): void {
+  try {
+    onTimings?.(timings);
+  } catch {
+    // The render's own outcome stands.
   }
 }

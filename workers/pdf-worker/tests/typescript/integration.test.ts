@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createServer, type Server } from 'node:http';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   RenderLimitError,
   countPdfPages,
@@ -8,6 +8,7 @@ import {
   renderHtmlToPdf,
   resolveChromiumPath,
   shutdownBrowser,
+  type RenderTimings,
 } from '../../core/html.js';
 import { createHttpServer } from '../../deploy/docker/http.js';
 
@@ -195,4 +196,66 @@ describe.skipIf(!chromium)('integration: one browser serves every render', () =>
     expect(countPdfPages(await renderHtmlToPdf('<p>after</p>'))).toBe(1);
     expect(browserPid()).toBe(before);
   }, 60_000);
+});
+
+describe.skipIf(!chromium)('integration: render timings', () => {
+  it('reports every step of a render, and never the document', async () => {
+    const reports: RenderTimings[] = [];
+    const pdf = await renderHtmlToPdf(
+      '<!doctype html><body><p>Passenger: Ada Lovelace</p></body>',
+      {},
+      { onTimings: (timings) => reports.push(timings) },
+    );
+    expect(reports).toHaveLength(1);
+    const [timings] = reports;
+    expect(timings).toMatchObject({ outcome: 'ok', pages: 1, bytes: pdf.length });
+    for (const step of ['browser', 'newPage', 'setContent', 'pdf', 'validate', 'close', 'total'])
+      expect(timings?.ms).toHaveProperty(step, expect.any(Number));
+    expect(timings?.failedIn).toBeUndefined();
+    expect(JSON.stringify(timings)).not.toContain('Lovelace');
+  }, 30_000);
+
+  it('names the step a render ran out of time in', async () => {
+    const reports: RenderTimings[] = [];
+    const rows = '<tr><td>row</td><td>cell</td></tr>'.repeat(20_000);
+    await expect(
+      renderHtmlToPdf(
+        `<!doctype html><table>${rows}</table>`,
+        {},
+        {
+          limits: { deadlineMs: 300 },
+          onTimings: (timings) => reports.push(timings),
+        },
+      ),
+    ).rejects.toMatchObject({ code: 'render_timeout' });
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({ outcome: 'render_timeout' });
+    expect(['browser', 'newPage', 'setContent', 'pdf']).toContain(reports[0]?.failedIn);
+  }, 30_000);
+
+  it('logs one line per HTTP render when the server is asked to', async () => {
+    const server = await createHttpServer({ port: 0, apiToken: null, logRenderTimings: true });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      const response = await fetch(`${getServerOrigin(server)}/v1/render/markdown`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown: '# Ada Lovelace', options: { template: 'rca' } }),
+      });
+      expect(response.status).toBe(200);
+      const lines = log.mock.calls.map(([line]) => JSON.parse(String(line)));
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toMatchObject({
+        level: 'info',
+        msg: 'render',
+        route: 'markdown',
+        outcome: 'ok',
+      });
+      expect(lines[0].ms).toHaveProperty('postProcess', expect.any(Number));
+      expect(JSON.stringify(lines[0])).not.toContain('Lovelace');
+    } finally {
+      log.mockRestore();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }, 30_000);
 });

@@ -73,13 +73,14 @@ Published tags:
 The standard container listens on `PORT` (`8010` by default) and writes the PDF
 to the HTTP response. It does not need a database or persistent volume.
 
-| Variable                    | Default       | Purpose                                |
-| --------------------------- | ------------- | -------------------------------------- |
-| `PORT`                      | `8010`        | HTTP listen port                       |
-| `API_TOKEN`                 | unset         | Bearer token required on render routes |
-| `MAX_REQUEST_BYTES`         | `5242880`     | Maximum JSON request-body size         |
-| `MAX_ACTIVE_RENDERS`        | `4`           | Renders at once (see below)            |
-| `PUPPETEER_EXECUTABLE_PATH` | image-defined | Chromium binary path                   |
+| Variable                    | Default       | Purpose                                    |
+| --------------------------- | ------------- | ------------------------------------------ |
+| `PORT`                      | `8010`        | HTTP listen port                           |
+| `API_TOKEN`                 | unset         | Bearer token required on render routes     |
+| `MAX_REQUEST_BYTES`         | `5242880`     | Maximum JSON request-body size             |
+| `MAX_ACTIVE_RENDERS`        | `4`           | Renders at once (see below)                |
+| `RENDER_TIMING_LOG`         | on            | One timing line per render (`off` to stop) |
+| `PUPPETEER_EXECUTABLE_PATH` | image-defined | Chromium binary path                       |
 
 Routes:
 
@@ -128,6 +129,17 @@ The worker treats every document as untrusted and renders it sealed:
   its response is written, so a caller that sends one request at a time (a
   Lambda environment, which takes one invocation at a time) is never refused.
   Set it at or above the platform's per-instance concurrency.
+
+Each render writes one JSON line to stdout at info level (turn it off with
+`RENDER_TIMING_LOG=off`): the route, the outcome and, for a failure, the step
+it stopped in, whether Chromium was already warm, the milliseconds spent
+waiting for the browser, opening the page, loading the document, the template's
+post-process, printing, checking the PDF, closing the page and in total, the
+request and PDF sizes, and the page count. It never holds document contents.
+
+```text
+{"level":"info","msg":"render","route":"html","outcome":"ok","browser":"warm","ms":{"browser":0,"newPage":20,"setContent":22,"pdf":69,"validate":0,"close":3,"total":114},"pages":2,"bytes":198943,"inputBytes":137496}
+```
 
 Platform controls still matter:
 

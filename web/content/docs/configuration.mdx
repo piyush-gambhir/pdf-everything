@@ -66,13 +66,14 @@ cannot read a file created by another replica.
 
 ## Chromium worker
 
-| Variable                    | Default       | Purpose                                     |
-| --------------------------- | ------------- | ------------------------------------------- |
-| `PORT`                      | `8010`        | Worker HTTP port                            |
-| `API_TOKEN`                 | unset         | Bearer token required on render routes      |
-| `MAX_REQUEST_BYTES`         | `5242880`     | Maximum JSON body                           |
-| `MAX_ACTIVE_RENDERS`        | `4`           | Renders at once; more get `503 worker_busy` |
-| `PUPPETEER_EXECUTABLE_PATH` | auto-detected | Chromium executable                         |
+| Variable                    | Default       | Purpose                                         |
+| --------------------------- | ------------- | ----------------------------------------------- |
+| `PORT`                      | `8010`        | Worker HTTP port                                |
+| `API_TOKEN`                 | unset         | Bearer token required on render routes          |
+| `MAX_REQUEST_BYTES`         | `5242880`     | Maximum JSON body                               |
+| `MAX_ACTIVE_RENDERS`        | `4`           | Renders at once; more get `503 worker_busy`     |
+| `RENDER_TIMING_LOG`         | on            | One JSON timing line per render; `off` stops it |
+| `PUPPETEER_EXECUTABLE_PATH` | auto-detected | Chromium executable                             |
 
 `API_TOKEN` must match `PDF_RENDER_WORKER_TOKEN` on Nest.
 

@@ -7,6 +7,8 @@ import {
   resolveChromiumPath,
   type HtmlRenderOptions,
   type RenderLimits,
+  type RenderRuntime,
+  type RenderTimings,
 } from '../../core/html.js';
 import { renderMarkdownToPdf, type MarkdownRenderOptions } from '../../core/markdown.js';
 import { InvalidOptionsError, parseHtmlOptions, parseMarkdownOptions } from '../../core/options.js';
@@ -38,6 +40,8 @@ export interface HttpServerOptions {
   limits?: Partial<RenderLimits>;
   /** Renders at once; one more is refused with 503 (default 4). */
   maxActiveRenders?: number;
+  /** Write one JSON line per render to stdout with its step timings (see logRender). */
+  logRenderTimings?: boolean;
 }
 
 const LIMIT_STATUS: Record<RenderLimitError['code'], number> = {
@@ -88,6 +92,16 @@ function isAuthorized(req: IncomingMessage, apiToken: string | null): boolean {
   return !apiToken || req.headers.authorization?.trim() === `Bearer ${apiToken}`;
 }
 
+/**
+ * One line per render, at info level: the route, the outcome (and the step a
+ * failure stopped in), whether Chromium was warm, each step's milliseconds, the
+ * request's and the PDF's sizes, and the page count. Never document contents.
+ */
+function logRender(route: 'html' | 'markdown', inputBytes: number, timings: RenderTimings) {
+  // eslint-disable-next-line no-console
+  console.log(JSON.stringify({ level: 'info', msg: 'render', route, ...timings, inputBytes }));
+}
+
 /** The answer to a render request, decided before anything is written. */
 type Reply = { status: number; body: unknown } | { pdf: Buffer };
 
@@ -133,14 +147,20 @@ function send(res: ServerResponse, reply: Reply): void {
 export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
   const maxRequestBytes = opts.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
   const maxActiveRenders = opts.maxActiveRenders ?? DEFAULT_MAX_ACTIVE_RENDERS;
-  const runtime = { limits: opts.limits };
+  const runtime: RenderRuntime = { limits: opts.limits };
+  const runtimeFor = (route: 'html' | 'markdown', inputBytes: number): RenderRuntime =>
+    opts.logRenderTimings
+      ? { ...runtime, onTimings: (timings) => logRender(route, inputBytes, timings) }
+      : runtime;
   let activeRenders = 0;
 
   /** Read, validate and render one request. */
   async function handleRender(req: IncomingMessage, pathname: string): Promise<Reply> {
     let body: RenderRequest;
+    let inputBytes: number;
     try {
       const raw = await readBody(req, maxRequestBytes);
+      inputBytes = Buffer.byteLength(raw);
       const parsed = JSON.parse(raw) as unknown;
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         return bad('Body must be a JSON object.');
@@ -176,7 +196,7 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
       } catch (error) {
         return refusedOptions(error);
       }
-      return rendered(() => renderHtmlToPdf(html, options, runtime));
+      return rendered(() => renderHtmlToPdf(html, options, runtimeFor('html', inputBytes)));
     }
 
     if (hasHtml || typeof body.markdown !== 'string' || body.markdown.length === 0) {
@@ -189,7 +209,9 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
     } catch (error) {
       return refusedOptions(error);
     }
-    return rendered(() => renderMarkdownToPdf(markdown, options, runtime));
+    return rendered(() =>
+      renderMarkdownToPdf(markdown, options, runtimeFor('markdown', inputBytes)),
+    );
   }
 
   const server = createServer(async (req, res) => {
