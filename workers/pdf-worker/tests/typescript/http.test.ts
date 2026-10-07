@@ -1,12 +1,13 @@
 import { type Server } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { RenderLimitError, renderHtmlToPdf } from '../../core/html.js';
+import { RenderLimitError, prepareBrowser, renderHtmlToPdf } from '../../core/html.js';
 import { renderMarkdownToPdf } from '../../core/markdown.js';
 import { createHttpServer } from '../../deploy/docker/http.js';
 
 vi.mock('../../core/html.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../core/html.js')>()),
   resolveChromiumPath: () => '/usr/bin/chromium',
+  prepareBrowser: vi.fn().mockResolvedValue(undefined),
   renderHtmlToPdf: vi
     .fn()
     .mockResolvedValue(
@@ -69,10 +70,18 @@ describe('HTTP server without authentication', () => {
     expect((await request(origin, '/health?probe=1')).status).toBe(200);
   });
 
-  it('reports readiness when Chromium is available', async () => {
+  it('reports readiness once the shared browser is up', async () => {
     const res = await request(origin, '/ready');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: 'ready' });
+    expect(prepareBrowser).toHaveBeenCalled();
+  });
+
+  it('is not ready while Chromium fails to start', async () => {
+    vi.mocked(prepareBrowser).mockRejectedValueOnce(new Error('Chromium exited.'));
+    const res = await request(origin, '/ready');
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ status: 'not_ready', message: 'Chromium exited.' });
   });
 
   it('lists Markdown templates', async () => {

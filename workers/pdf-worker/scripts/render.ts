@@ -23,7 +23,7 @@ import {
 } from 'node:fs';
 import { resolve, basename, extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromiumPath } from '../core/html.js';
+import { resolveChromiumPath, shutdownBrowser } from '../core/html.js';
 import { renderMarkdownToPdf } from '../core/markdown.js';
 import {
   TEMPLATE_NAMES,
@@ -197,7 +197,10 @@ async function main() {
   console.log(`Saved → ${args.out} (${(pdf.length / 1024).toFixed(1)} KB)`);
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+// The renderer keeps its browser for the next render; a CLI closes it.
+main()
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : err);
+    process.exitCode = 1;
+  })
+  .finally(() => shutdownBrowser());

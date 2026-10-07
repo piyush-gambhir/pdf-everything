@@ -52,14 +52,19 @@ WORKDIR /app
 # the one matching --platform).
 COPY --from=lambda-adapter /lambda-adapter /opt/extensions/lambda-adapter
 
-# The server and adapter share port 8080. Lambda's filesystem is read-only
-# outside /tmp, so Chromium writes its home and cache data there. A buffered
-# Lambda response is at most 6 MB after base64, so PDFs stop at 4 MiB, and the
-# render deadline sits under a 60-second function timeout.
+# The server and adapter share port 8080. The adapter's readiness check is
+# /ready, which answers once the shared Chromium is up, so the browser starts
+# during the environment's init and the first render finds it running; with
+# async init, a start slower than Lambda's 10-second init limit finishes inside
+# the first invocation instead of restarting the environment. Lambda's
+# filesystem is read-only outside /tmp, so Chromium writes its home and cache
+# data there. A buffered Lambda response is at most 6 MB after base64, so PDFs
+# stop at 4 MiB, and the render deadline sits under a 60-second function timeout.
 ENV NODE_ENV=production \
     PORT=8080 \
     AWS_LWA_PORT=8080 \
-    AWS_LWA_READINESS_CHECK_PATH=/health \
+    AWS_LWA_READINESS_CHECK_PATH=/ready \
+    AWS_LWA_ASYNC_INIT=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     MAX_PDF_BYTES=4194304 \
     RENDER_DEADLINE_MS=50000 \
@@ -82,7 +87,15 @@ RUN apk add --no-cache \
     font-noto-emoji
 
 COPY deploy/fonts /usr/share/fonts/pdf-worker
-RUN fc-cache -f
+# Lambda's image filesystem keeps whole-second times, and fontconfig refuses a
+# cache whose directory time differs even in nanoseconds, so a cache built from
+# the precise times made every new environment rescan all the fonts (CJK
+# included) when Chromium first started. Truncate the font directories' times,
+# build the cache, and fail the build if any time is still fractional.
+RUN find /usr/share/fonts -type d -exec sh -c \
+      'for d; do touch -c -d "@$(stat -c %Y "$d")" "$d"; done' _ {} + \
+  && fc-cache -f \
+  && ! find /usr/share/fonts -type d -exec stat -c %y {} + | grep -v '\.000000000 '
 
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

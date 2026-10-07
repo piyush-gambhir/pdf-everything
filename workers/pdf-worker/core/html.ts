@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import puppeteer, { type Browser, type HTTPRequest } from 'puppeteer-core';
+import puppeteer, { type Browser, type HTTPRequest, type Page } from 'puppeteer-core';
 
 export type PdfFormat = 'A4' | 'Letter' | 'Legal';
 
@@ -30,7 +30,7 @@ export interface RenderLimits {
   maxPages: number;
   /** Largest PDF, in bytes. */
   maxOutputBytes: number;
-  /** Whole-render deadline (browser launch to PDF bytes), in ms. */
+  /** Whole-render deadline (waiting for the browser to PDF bytes), in ms. */
   deadlineMs: number;
 }
 
@@ -78,12 +78,17 @@ const DEFAULT_OPTIONS = {
  * sent to a closed local proxy port and every host name fails to resolve, so a
  * request that somehow escapes interception (a preconnect, a DNS prefetch)
  * still reaches nothing. DevTools runs over a pipe, not a debugging port.
+ * Printing needs no GPU process: on a host without a GPU or a working
+ * software renderer (AWS Lambda), Chromium otherwise starts and loses two to
+ * four of them on every launch.
  */
 const CHROMIUM_ARGS = [
   '--no-sandbox',
   '--disable-setuid-sandbox',
   '--disable-dev-shm-usage',
   '--no-zygote',
+  '--disable-gpu',
+  '--disable-software-rasterizer',
   '--proxy-server=127.0.0.1:9',
   '--proxy-bypass-list=<-loopback>',
   '--host-resolver-rules=MAP * ~NOTFOUND',
@@ -180,18 +185,142 @@ function blockNetwork(request: HTTPRequest): void {
   }
 }
 
+/** How long a browser may take to start, and a page to close. */
+const LAUNCH_TIMEOUT_MS = DEFAULT_LIMITS.deadlineMs;
+const CLOSE_TIMEOUT_MS = 5_000;
+
 /**
- * Close gracefully, or kill: aborting the launch signal makes Puppeteer
- * SIGKILL Chromium's whole process group, renderers included.
+ * One Chromium per process, launched on first use (or by {@link prepareBrowser})
+ * and shared by every render; each render prints from its own page, closed
+ * afterwards. The pages share the default browser context: with scripts off and
+ * no network a document can neither leave state for the next nor read any, and
+ * a fresh context per render cost about 0.7 s on AWS Lambda. Aborting `kill`
+ * makes Puppeteer SIGKILL Chromium's whole process group, renderers included,
+ * even while it is still starting.
  */
-async function closeBrowser(browser: Browser, kill: AbortController): Promise<void> {
+interface SharedBrowser {
+  executablePath: string;
+  browser: Promise<Browser>;
+  kill: AbortController;
+}
+
+let shared: SharedBrowser | undefined;
+
+function forget(entry: SharedBrowser): void {
+  if (shared === entry) shared = undefined;
+}
+
+function discard(entry: SharedBrowser): void {
+  forget(entry);
+  entry.kill.abort();
+}
+
+/** The shared browser for this binary, launching it if there is none. */
+function sharedBrowser(executablePath: string): SharedBrowser {
+  if (shared?.executablePath === executablePath) return shared;
+  if (shared) discard(shared);
+
+  const kill = new AbortController();
+  const entry: SharedBrowser = {
+    executablePath,
+    kill,
+    browser: puppeteer.launch({
+      executablePath,
+      headless: true,
+      pipe: true,
+      args: CHROMIUM_ARGS,
+      signal: kill.signal,
+      timeout: LAUNCH_TIMEOUT_MS,
+      // The browser outlives any one render, so it must not change how the
+      // host process answers these signals; Chromium exits with its pipe.
+      handleSIGTERM: false,
+      handleSIGHUP: false,
+    }),
+  };
+  shared = entry;
+  // A browser that dies or never starts is relaunched by the next render.
+  entry.browser.then(
+    (browser) => {
+      browser.once('disconnected', () => discard(entry));
+      if (!browser.connected) discard(entry);
+    },
+    () => discard(entry),
+  );
+  return entry;
+}
+
+/**
+ * A new page on the shared browser. A browser that failed to start (a warm-up
+ * frozen with its Lambda environment times out on thaw) or has died, even one
+ * whose death Puppeteer has yet to notice, is replaced once.
+ */
+async function openPage(executablePath: string): Promise<{ page: Page; entry: SharedBrowser }> {
+  for (let attempt = 1; ; attempt++) {
+    const entry = sharedBrowser(executablePath);
+    try {
+      return { page: await (await entry.browser).newPage(), entry };
+    } catch (error) {
+      const browser = await entry.browser.catch(() => undefined);
+      if (attempt === 2 || browser?.connected) throw error;
+      discard(entry);
+    }
+  }
+}
+
+/** Resolve the browser binary from the runtime settings or the environment. */
+function browserPath(runtime: Pick<RenderRuntime, 'executablePath'>): string {
+  const executablePath = runtime.executablePath ?? resolveChromiumPath();
+  if (!executablePath) {
+    throw new Error(
+      'No Chromium/Chrome found. Set PUPPETEER_EXECUTABLE_PATH to the browser binary.',
+    );
+  }
+  return executablePath;
+}
+
+/**
+ * Start the shared browser ahead of the first render (a server calls this at
+ * startup and from its readiness check). Resolves once Chromium is up.
+ */
+export async function prepareBrowser(
+  runtime: Pick<RenderRuntime, 'executablePath'> = {},
+): Promise<void> {
+  await sharedBrowser(browserPath(runtime)).browser;
+}
+
+/** Close the shared browser, if any (a CLI or a test calls this when done). */
+export async function shutdownBrowser(): Promise<void> {
+  const entry = shared;
+  if (!entry) return;
+  forget(entry);
+  const browser = await entry.browser.catch(() => undefined);
+  if (!browser) return;
+  if ((await bounded(browser.close(), CLOSE_TIMEOUT_MS)) === 'timeout') entry.kill.abort();
+}
+
+/** Settle with the promise's outcome, or 'timeout' after `ms`. */
+async function bounded(promise: Promise<unknown>, ms: number): Promise<'done' | 'timeout'> {
   let timer: NodeJS.Timeout | undefined;
   const gaveUp = new Promise<'timeout'>((resolve) => {
-    timer = setTimeout(() => resolve('timeout'), 5_000);
+    timer = setTimeout(() => resolve('timeout'), ms);
   });
-  const outcome = await Promise.race([browser.close().catch(() => 'closed'), gaveUp]);
+  const outcome = await Promise.race([
+    promise.then(
+      () => 'done' as const,
+      () => 'done' as const,
+    ),
+    gaveUp,
+  ]);
   clearTimeout(timer);
-  if (outcome === 'timeout') kill.abort();
+  return outcome;
+}
+
+/**
+ * Close one render's page, which ends its renderer. If Chromium cannot, the
+ * browser itself is killed and the next render starts a new one.
+ */
+async function closePage(page: Page, entry: SharedBrowser): Promise<void> {
+  if ((await bounded(page.close(), CLOSE_TIMEOUT_MS)) === 'timeout') discard(entry);
 }
 
 /**
@@ -205,13 +334,7 @@ export async function renderHtmlToPdf(
   options: HtmlRenderOptions = {},
   runtime: RenderRuntime = {},
 ): Promise<Buffer> {
-  const executablePath = runtime.executablePath ?? resolveChromiumPath();
-  if (!executablePath) {
-    throw new Error(
-      'No Chromium/Chrome found. Set PUPPETEER_EXECUTABLE_PATH to the browser binary.',
-    );
-  }
-
+  const executablePath = browserPath(runtime);
   const limits: RenderLimits = {
     maxPages: runtime.limits?.maxPages ?? DEFAULT_LIMITS.maxPages,
     maxOutputBytes: runtime.limits?.maxOutputBytes ?? DEFAULT_LIMITS.maxOutputBytes,
@@ -225,29 +348,26 @@ export async function renderHtmlToPdf(
   const startedAt = Date.now();
   const remainingMs = () => Math.max(1, limits.deadlineMs - (Date.now() - startedAt));
 
-  let browser: Browser | undefined;
-  // Aborting kills Chromium's process group, even while it is still starting.
-  const kill = new AbortController();
+  // The page being rendered, once open, and the browser it belongs to.
+  let open: { page: Page; entry: SharedBrowser } | undefined;
+  let finished = false;
 
   const render = async (): Promise<Buffer> => {
-    const launched = await puppeteer.launch({
-      executablePath,
-      headless: true,
-      pipe: true,
-      args: CHROMIUM_ARGS,
-      signal: kill.signal,
-      timeout: limits.deadlineMs,
-      protocolTimeout: limits.deadlineMs,
-    });
-    browser = launched;
-
-    const page = await launched.newPage();
+    const { page, entry } = await openPage(executablePath);
+    if (finished) {
+      // The deadline passed while the page was opening.
+      void closePage(page, entry);
+      throw new Error('The render was abandoned.');
+    }
+    open = { page, entry };
     await page.setJavaScriptEnabled(false);
     await page.setRequestInterception(true);
     page.on('request', blockNetwork);
 
+    // `load` waits for the document's subresources (all data: URIs); fonts
+    // that layout requests later are awaited by `page.pdf` (`waitForFonts`).
     await page.setContent(html, {
-      waitUntil: 'networkidle0',
+      waitUntil: 'load',
       timeout: Math.min(resolved.navigationTimeoutMs, remainingMs()),
     });
     if (runtime.postProcess) await page.evaluate(runtime.postProcess);
@@ -261,6 +381,7 @@ export async function renderHtmlToPdf(
         preferCSSPageSize: resolved.preferCssPageSize,
         margin: resolved.margin,
         pageRanges: `1-${limits.maxPages + 1}`,
+        waitForFonts: true,
         timeout: remainingMs(),
       }),
     );
@@ -283,7 +404,6 @@ export async function renderHtmlToPdf(
   let timer: NodeJS.Timeout | undefined;
   const deadline = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      kill.abort();
       reject(
         new RenderLimitError(
           'render_timeout',
@@ -300,13 +420,10 @@ export async function renderHtmlToPdf(
   try {
     return await Promise.race([rendering, deadline]);
   } finally {
+    finished = true;
     clearTimeout(timer);
-    if (kill.signal.aborted) {
-      // The deadline already killed it.
-    } else if (browser) {
-      await closeBrowser(browser, kill);
-    } else {
-      kill.abort();
-    }
+    // Closing the page stops a render the deadline abandoned. A render still
+    // waiting for the browser leaves the launch running for the next.
+    if (open) await closePage(open.page, open.entry);
   }
 }

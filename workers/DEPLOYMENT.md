@@ -82,21 +82,23 @@ to the HTTP response. It does not need a database or persistent volume.
 
 Routes:
 
-| Method | Path                  | Authentication               | Purpose                             |
-| ------ | --------------------- | ---------------------------- | ----------------------------------- |
-| `GET`  | `/health`             | None                         | Liveness and supported operations   |
-| `GET`  | `/ready`              | None                         | Confirms that Chromium is available |
-| `GET`  | `/v1/templates`       | None                         | Lists Markdown templates            |
-| `POST` | `/v1/render/html`     | `API_TOKEN`, when configured | HTML to PDF                         |
-| `POST` | `/v1/render/markdown` | `API_TOKEN`, when configured | Markdown to PDF                     |
+| Method | Path                  | Authentication               | Purpose                           |
+| ------ | --------------------- | ---------------------------- | --------------------------------- |
+| `GET`  | `/health`             | None                         | Liveness and supported operations |
+| `GET`  | `/ready`              | None                         | Answers once Chromium is running  |
+| `GET`  | `/v1/templates`       | None                         | Lists Markdown templates          |
+| `POST` | `/v1/render/html`     | `API_TOKEN`, when configured | HTML to PDF                       |
+| `POST` | `/v1/render/markdown` | `API_TOKEN`, when configured | Markdown to PDF                   |
 
 `API_TOKEN` is application-level authentication. A platform can instead keep
 the entire service private with IAM, a private network, or an authenticated
 gateway. Do not expose an unauthenticated render route to the public internet.
 
-Each request starts a Chromium browser and closes it after rendering. Begin with
-low per-instance concurrency—`1` or `2` is a conservative default—and raise it
-only after measuring memory, CPU, latency, and document complexity.
+The worker starts one Chromium when it boots and keeps it: each request renders
+in its own page, closed afterwards, and a browser that dies is started again by
+the next request. Begin with low per-instance concurrency (`1` or `2` is a
+conservative default) and raise it only after measuring memory, CPU, latency,
+and document complexity.
 
 ### Production hardening
 
@@ -331,6 +333,13 @@ Use at least 1536 MiB memory for Chromium; the repository defaults to 2048 MiB
 and a 60-second timeout. Prefer `AWS_IAM` Function URL authentication. If
 `FUNCTION_URL_AUTH=NONE`, set `API_TOKEN` or protect the function with an
 authenticated gateway.
+
+The Lambda Web Adapter's readiness check is `/ready`, so Chromium starts during
+an environment's init and stays up between invocations: a warm environment
+renders a one-page document in about a second. Lambda loads a container image
+lazily, and an environment that must read image data Lambda has not cached
+starts Chromium far more slowly; invoke a newly deployed version once before
+sending it traffic.
 
 ## Deploy to another container platform
 

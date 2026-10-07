@@ -44,7 +44,7 @@ docker pull ghcr.io/piyush-gambhir/pdf-everything-pdf-worker-lambda:latest
 | Method | Path                  | Description                               |
 | ------ | --------------------- | ----------------------------------------- |
 | GET    | `/health`             | Liveness and supported-operation list     |
-| GET    | `/ready`              | Readiness; verifies Chromium is available |
+| GET    | `/ready`              | Readiness; answers once Chromium is up    |
 | GET    | `/v1/templates`       | Markdown template names                   |
 | POST   | `/v1/render/html`     | Render HTML to PDF                        |
 | POST   | `/v1/render/markdown` | Render Markdown to PDF                    |
@@ -130,10 +130,12 @@ bash scripts/deploy-lambda.sh
 ```
 
 Use at least 1536 MB memory for Chromium; the deployment script defaults to
-2048 MB and a 60-second timeout. AWS Lambda container images must be copied to
-ECR in the same region as the function. The published Lambda image is
-multi-arch (`linux/amd64`, `linux/arm64`); Lambda needs one platform's
-manifest, so deploy its per-platform digest (see the deployment guide).
+2048 MB and a 60-second timeout. The worker keeps one Chromium running between
+requests, and the Lambda image reports ready only once it is up (`/ready`).
+AWS Lambda container images must be copied to ECR in the same region as the
+function. The published Lambda image is multi-arch (`linux/amd64`,
+`linux/arm64`); Lambda needs one platform's manifest, so deploy its
+per-platform digest (see the deployment guide).
 
 ## Configuration
 
@@ -150,11 +152,14 @@ manifest, so deploy its per-platform digest (see the deployment guide).
 ## Library use
 
 ```ts
-import { renderHtmlToPdf } from './core/html.js';
+import { renderHtmlToPdf, shutdownBrowser } from './core/html.js';
 import { renderMarkdownToPdf } from './core/markdown.js';
 
 // Page settings, then operator settings (never taken from a request).
 await renderHtmlToPdf(html, { format: 'Letter' }, { executablePath, limits: { maxPages: 20 } });
+
+// Renders share one Chromium, started on first use; a script closes it when done.
+await shutdownBrowser();
 ```
 
 The Markdown CLI remains available:

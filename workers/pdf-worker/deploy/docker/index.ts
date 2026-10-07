@@ -1,3 +1,4 @@
+import { prepareBrowser, shutdownBrowser } from '../../core/html.js';
 import { createHttpServer } from './http.js';
 
 const port = Number(process.env.PORT ?? '8010') || 8010;
@@ -9,7 +10,7 @@ function positiveInteger(name: string): number | undefined {
   return Number.isInteger(value) && value > 0 ? value : undefined;
 }
 
-await createHttpServer({
+const server = await createHttpServer({
   port,
   apiToken,
   maxRequestBytes: positiveInteger('MAX_REQUEST_BYTES'),
@@ -18,6 +19,15 @@ await createHttpServer({
     maxOutputBytes: positiveInteger('MAX_PDF_BYTES'),
     deadlineMs: positiveInteger('RENDER_DEADLINE_MS'),
   },
+});
+
+// Start Chromium now rather than inside the first render. A failure here is
+// retried by the readiness check and by the next render.
+prepareBrowser().catch(() => undefined);
+
+process.once('SIGTERM', () => {
+  server.close();
+  void shutdownBrowser().finally(() => process.exit(0));
 });
 
 const authHint = apiToken

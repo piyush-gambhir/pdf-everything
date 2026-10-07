@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import {
   RenderLimitError,
   countPdfPages,
+  prepareBrowser,
   renderHtmlToPdf,
   resolveChromiumPath,
   type RenderLimits,
@@ -125,12 +126,22 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
       return;
     }
 
+    // Ready once the shared browser is up: the first check waits for the
+    // launch, so a platform that gates traffic on it (the Lambda image does)
+    // never sends a render to a cold browser.
     if (method === 'GET' && pathname === '/ready') {
       if (!resolveChromiumPath()) {
         json(res, 503, {
           status: 'not_ready',
           message: 'Chromium binary not found (set PUPPETEER_EXECUTABLE_PATH).',
         });
+        return;
+      }
+      try {
+        await prepareBrowser();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Chromium did not start.';
+        json(res, 503, { status: 'not_ready', message });
         return;
       }
       json(res, 200, { status: 'ready' });

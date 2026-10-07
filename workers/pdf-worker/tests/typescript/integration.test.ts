@@ -1,14 +1,20 @@
+import { execFileSync } from 'node:child_process';
 import { createServer, type Server } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   RenderLimitError,
   countPdfPages,
+  prepareBrowser,
   renderHtmlToPdf,
   resolveChromiumPath,
+  shutdownBrowser,
 } from '../../core/html.js';
 import { createHttpServer } from '../../deploy/docker/http.js';
 
 const chromium = process.env.RUN_BROWSER_INTEGRATION === '1' ? resolveChromiumPath() : null;
+
+// The renderer keeps one browser for the whole file.
+afterAll(() => shutdownBrowser());
 
 function getServerOrigin(server: Server): string {
   const address = server.address();
@@ -142,5 +148,51 @@ describe.skipIf(!chromium)('integration: the renderer is sealed', () => {
     const late = renderHtmlToPdf('<p>x</p>', {}, { limits: { deadlineMs: 5 } });
     await expect(late).rejects.toBeInstanceOf(RenderLimitError);
     await expect(late).rejects.toMatchObject({ code: 'render_timeout' });
+  }, 60_000);
+});
+
+/** The browser process this test process started, if one is running. */
+function browserPid(): number | undefined {
+  const rows = execFileSync('ps', ['-A', '-o', 'pid=,ppid=,stat='], { encoding: 'utf8' });
+  for (const row of rows.trim().split('\n')) {
+    const [pid, ppid, stat] = row.trim().split(/\s+/);
+    if (Number(ppid) === process.pid && !stat?.startsWith('Z')) return Number(pid);
+  }
+  return undefined;
+}
+
+async function until(condition: () => boolean): Promise<void> {
+  for (let i = 0; i < 100 && !condition(); i++) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  expect(condition()).toBe(true);
+}
+
+describe.skipIf(!chromium)('integration: one browser serves every render', () => {
+  it('reuses the browser, and starts a new one after it dies', async () => {
+    await prepareBrowser();
+    const first = browserPid();
+    expect(first).toBeDefined();
+    expect(countPdfPages(await renderHtmlToPdf('<p>one</p>'))).toBe(1);
+    expect(countPdfPages(await renderHtmlToPdf('<p>two</p>'))).toBe(1);
+    expect(browserPid()).toBe(first);
+
+    // Kill Chromium's whole process group, as a crash or the OOM killer would.
+    process.kill(-first!, 'SIGKILL');
+    await until(() => browserPid() !== first);
+    expect(countPdfPages(await renderHtmlToPdf('<p>three</p>'))).toBe(1);
+    expect(browserPid()).not.toBe(first);
+  }, 60_000);
+
+  it('a render past its deadline leaves the browser working for the next', async () => {
+    await prepareBrowser();
+    const before = browserPid();
+    const rows = '<tr><td>row</td><td>cell</td><td>cell</td></tr>'.repeat(20_000);
+    const heavy = `<!doctype html><table>${rows}</table>`;
+    await expect(renderHtmlToPdf(heavy, {}, { limits: { deadlineMs: 300 } })).rejects.toMatchObject(
+      { code: 'render_timeout' },
+    );
+    expect(countPdfPages(await renderHtmlToPdf('<p>after</p>'))).toBe(1);
+    expect(browserPid()).toBe(before);
   }, 60_000);
 });
