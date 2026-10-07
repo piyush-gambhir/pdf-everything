@@ -52,7 +52,7 @@ export interface RenderRuntime {
    */
   postProcess?: () => void;
   /** Called once per render, after its page is closed, with how it went. */
-  onTimings?: (timings: RenderTimings) => void;
+  onTimings?: (timings: RenderTimings) => void | Promise<void>;
 }
 
 export type RenderErrorCode = 'page_limit_exceeded' | 'output_too_large' | 'render_timeout';
@@ -403,7 +403,18 @@ export async function renderHtmlToPdf(
   options: HtmlRenderOptions = {},
   runtime: RenderRuntime = {},
 ): Promise<Buffer> {
-  const executablePath = browserPath(runtime);
+  let executablePath: string;
+  try {
+    executablePath = browserPath(runtime);
+  } catch (error) {
+    report(runtime.onTimings, {
+      outcome: 'failed',
+      failedIn: 'browser',
+      browser: 'launch',
+      ms: { browser: 0, total: 0 },
+    });
+    throw error;
+  }
   const limits: RenderLimits = {
     maxPages: runtime.limits?.maxPages ?? DEFAULT_LIMITS.maxPages,
     maxOutputBytes: runtime.limits?.maxOutputBytes ?? DEFAULT_LIMITS.maxOutputBytes,
@@ -541,10 +552,11 @@ export async function renderHtmlToPdf(
   }
 }
 
-/** Hand the timings over; a failing logger never fails the render. */
+/** Hand the timings over; a failing logger, sync or async, never fails the render. */
 function report(onTimings: RenderRuntime['onTimings'], timings: RenderTimings): void {
   try {
-    onTimings?.(timings);
+    const reported = onTimings?.(timings);
+    if (reported instanceof Promise) reported.catch(() => undefined);
   } catch {
     // The render's own outcome stands.
   }

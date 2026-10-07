@@ -2,7 +2,7 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { renderHtmlToPdf, shutdownBrowser } from '../../core/html.js';
+import { renderHtmlToPdf, shutdownBrowser, type RenderTimings } from '../../core/html.js';
 
 /** A "browser" that records each start, waits, and exits without a DevTools pipe. */
 function failingBrowser(seconds: number) {
@@ -25,6 +25,25 @@ describe('the shared browser', () => {
       renderHtmlToPdf('<p>x</p>', {}, { executablePath: browser.path }),
     ).rejects.toThrow();
     expect(browser.count()).toBe(2);
+  });
+
+  it('reports a render that could not start, and survives a failing timing logger', async () => {
+    const browser = failingBrowser(0);
+    const reports: RenderTimings[] = [];
+    await expect(
+      renderHtmlToPdf(
+        '<p>x</p>',
+        {},
+        {
+          executablePath: browser.path,
+          onTimings: async (timings) => {
+            reports.push(timings);
+            throw new Error('The log is unavailable.');
+          },
+        },
+      ),
+    ).rejects.toThrow();
+    expect(reports).toMatchObject([{ outcome: 'failed', failedIn: 'browser', browser: 'launch' }]);
   });
 
   it('is not launched again for a render its deadline abandoned', async () => {
