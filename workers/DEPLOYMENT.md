@@ -402,8 +402,9 @@ The repository owns release automation:
 
 1. `.github/workflows/workers-ci.yml` installs, builds, formats, and tests the
    worker.
-2. CI builds the standard image and renders one HTML and one Markdown document
-   inside it.
+2. CI builds the standard image, runs the real-Chromium integration tests
+   inside it (network sealing, limits, browser recovery, timings), and renders
+   one HTML and one Markdown document with it.
 3. CI also verifies that the Lambda image builds.
 4. `.github/workflows/publish-worker-images.yml` publishes the standard and
    Lambda images to GHCR only after verification succeeds.

@@ -173,6 +173,11 @@ jobs:
             --tag pdf-worker:ci \
             workers/pdf-worker
 
+      # The arm64 runner has no Chrome, so the real-Chromium tests run inside
+      # the image just built, against the Chromium and fonts it ships.
+      - name: Run real-Chromium integration tests in the image
+        run: sh workers/pdf-worker/scripts/integration-in-docker.sh pdf-worker:ci
+
       - name: Smoke-test both operations
         run: |
           cleanup() {

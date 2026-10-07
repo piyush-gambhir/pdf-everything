@@ -28,9 +28,11 @@ Verification is split intentionally:
 ```bash
 corepack pnpm test              # deterministic unit and HTTP tests
 corepack pnpm test:integration  # real locally installed Chromium
+sh scripts/integration-in-docker.sh <image>  # the same, inside a built image (CI)
 ```
 
-Release CI also renders both operations inside the production container.
+Release CI runs the integration tests inside the production image, then renders
+both operations with it.
 
 Published images:
 
