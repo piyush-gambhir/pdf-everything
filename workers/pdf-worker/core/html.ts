@@ -221,25 +221,34 @@ function sharedBrowser(executablePath: string): SharedBrowser {
   if (shared) discard(shared);
 
   const kill = new AbortController();
+  const launching = puppeteer.launch({
+    executablePath,
+    headless: true,
+    pipe: true,
+    args: CHROMIUM_ARGS,
+    signal: kill.signal,
+    timeout: LAUNCH_TIMEOUT_MS,
+    // The browser outlives any one render, so it must not change how the
+    // host process answers these signals; Chromium exits with its pipe.
+    handleSIGTERM: false,
+    handleSIGHUP: false,
+  });
   // Puppeteer's `timeout` does not bound a pipe connection's first DevTools
-  // commands, so the whole launch is bounded here: Chromium is killed and the
-  // launch rejects.
-  const gaveUp = setTimeout(() => kill.abort(), LAUNCH_TIMEOUT_MS);
+  // commands, and a Chromium that dies while its first tab attaches leaves the
+  // launch pending for good, so the launch is bounded here: past the limit
+  // Chromium is killed and the launch rejects, whatever Puppeteer does.
+  let gaveUp: NodeJS.Timeout | undefined;
+  const limit = new Promise<never>((_, reject) => {
+    gaveUp = setTimeout(() => {
+      kill.abort();
+      reject(new Error(`Chromium did not start within ${LAUNCH_TIMEOUT_MS} ms.`));
+    }, LAUNCH_TIMEOUT_MS);
+  });
+  launching.catch(() => undefined);
   const entry: SharedBrowser = {
     executablePath,
     kill,
-    browser: puppeteer.launch({
-      executablePath,
-      headless: true,
-      pipe: true,
-      args: CHROMIUM_ARGS,
-      signal: kill.signal,
-      timeout: LAUNCH_TIMEOUT_MS,
-      // The browser outlives any one render, so it must not change how the
-      // host process answers these signals; Chromium exits with its pipe.
-      handleSIGTERM: false,
-      handleSIGHUP: false,
-    }),
+    browser: Promise.race([launching, limit]),
   };
   shared = entry;
   // A browser that dies or never starts is relaunched by the next render.
