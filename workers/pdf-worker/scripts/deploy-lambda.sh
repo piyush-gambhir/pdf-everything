@@ -125,16 +125,22 @@ echo "==> Image ${IMAGE_URI}"
 
 # The function's current environment with API_TOKEN merged in, written to a
 # private file for --environment, and the revision the variables came from.
+# A caller that cannot decrypt the variables gets Environment.Error instead of
+# them; merging into nothing would erase them, so that stops the deploy.
 merged_environment() {
   aws lambda get-function-configuration \
     --function-name "$FUNCTION_NAME" \
     --region "$AWS_REGION" \
-    --query '{revision: RevisionId, variables: Environment.Variables}' \
+    --query '{revision: RevisionId, variables: Environment.Variables, error: Environment.Error}' \
     --output json \
   | node -e '
     let input = "";
     process.stdin.on("data", (chunk) => (input += chunk)).on("end", () => {
-      const { revision, variables } = JSON.parse(input);
+      const { revision, variables, error } = JSON.parse(input);
+      if (error) {
+        console.error(`error: cannot read the function environment (${error.ErrorCode}); nothing was changed.`);
+        process.exit(1);
+      }
       const merged = { ...(variables ?? {}), API_TOKEN: process.env.API_TOKEN };
       require("node:fs").writeFileSync(process.argv[1], JSON.stringify({ Variables: merged }));
       process.stdout.write(revision);
@@ -150,6 +156,9 @@ current_revision() {
     --output text
 }
 
+# What this run sets, checked again before publishing.
+SET_MEMORY="" SET_TIMEOUT="" SET_ENVIRONMENT=""
+
 # 3. Create the function, or update its code and only the settings asked for.
 if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$AWS_REGION" >/dev/null 2>&1; then
   echo "==> Updating function code: ${FUNCTION_NAME}"
@@ -160,12 +169,14 @@ if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$AWS_REGIO
     --region "$AWS_REGION" >/dev/null
   aws lambda wait function-updated --function-name "$FUNCTION_NAME" --region "$AWS_REGION"
 
+  SET_MEMORY="$MEMORY_MB" SET_TIMEOUT="$TIMEOUT_S"
   CONFIG_ARGS=()
   [[ -n "$MEMORY_MB" ]] && CONFIG_ARGS+=(--memory-size "$MEMORY_MB")
   [[ -n "$TIMEOUT_S" ]] && CONFIG_ARGS+=(--timeout "$TIMEOUT_S")
   if [[ -n "$API_TOKEN" ]]; then
     REVISION="$(merged_environment)"
-    CONFIG_ARGS+=(--environment "file://${SCRATCH}/environment.json")
+    SET_ENVIRONMENT="${SCRATCH}/environment.json"
+    CONFIG_ARGS+=(--environment "file://${SET_ENVIRONMENT}")
   else
     REVISION="$(current_revision)"
   fi
@@ -180,15 +191,17 @@ if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$AWS_REGIO
   fi
 else
   echo "==> Creating function: ${FUNCTION_NAME}"
+  SET_MEMORY="${MEMORY_MB:-2048}" SET_TIMEOUT="${TIMEOUT_S:-60}"
   CREATE_ARGS=()
   if [[ -n "$API_TOKEN" ]]; then
+    SET_ENVIRONMENT="${SCRATCH}/environment.json"
     node -e '
       require("node:fs").writeFileSync(
         process.argv[1],
         JSON.stringify({ Variables: { API_TOKEN: process.env.API_TOKEN } }),
       );
-    ' "${SCRATCH}/environment.json"
-    CREATE_ARGS+=(--environment "file://${SCRATCH}/environment.json")
+    ' "$SET_ENVIRONMENT"
+    CREATE_ARGS+=(--environment "file://${SET_ENVIRONMENT}")
   fi
   aws lambda create-function \
     --function-name "$FUNCTION_NAME" \
@@ -196,17 +209,51 @@ else
     --code "ImageUri=${IMAGE_URI}" \
     --role "$LAMBDA_EXECUTION_ROLE_ARN" \
     --architectures "$ARCHITECTURE" \
-    --memory-size "${MEMORY_MB:-2048}" \
-    --timeout "${TIMEOUT_S:-60}" \
+    --memory-size "$SET_MEMORY" \
+    --timeout "$SET_TIMEOUT" \
     ${CREATE_ARGS[@]+"${CREATE_ARGS[@]}"} \
     --region "$AWS_REGION" >/dev/null
   aws lambda wait function-active-v2 --function-name "$FUNCTION_NAME" --region "$AWS_REGION"
+  aws lambda wait function-updated --function-name "$FUNCTION_NAME" --region "$AWS_REGION"
 fi
 
-# 4. Publish exactly the revision just made, and check it runs the digest.
+# 4. Publish what this run made. Lambda may give the function a new revision
+# when an update finishes, so the revision is read once the updates are done,
+# after checking the function still has what this run set; the publish then
+# names that revision and code hash, and the version must run the digest.
+read -r REVISION CODE_SHA256 < <(aws lambda get-function-configuration \
+    --function-name "$FUNCTION_NAME" \
+    --region "$AWS_REGION" \
+    --query '{revision: RevisionId, code: CodeSha256, memory: MemorySize, timeout: Timeout, variables: Environment.Variables}' \
+    --output json \
+  | SET_MEMORY="$SET_MEMORY" SET_TIMEOUT="$SET_TIMEOUT" node -e '
+    let input = "";
+    process.stdin.on("data", (chunk) => (input += chunk)).on("end", () => {
+      const fs = require("node:fs");
+      const now = JSON.parse(input);
+      const sorted = (map) => JSON.stringify(Object.entries(map ?? {}).sort());
+      const changed = [];
+      if (process.env.SET_MEMORY && now.memory !== Number(process.env.SET_MEMORY)) changed.push("memory");
+      if (process.env.SET_TIMEOUT && now.timeout !== Number(process.env.SET_TIMEOUT)) changed.push("timeout");
+      if (process.argv[1]) {
+        const sent = JSON.parse(fs.readFileSync(process.argv[1], "utf8")).Variables;
+        if (sorted(now.variables) !== sorted(sent)) changed.push("environment");
+      }
+      if (changed.length) {
+        console.error(`error: the function changed during the deploy (${changed.join(", ")}); nothing was published.`);
+        process.exit(1);
+      }
+      process.stdout.write(`${now.revision} ${now.code}\n`);
+    });
+  ' "$SET_ENVIRONMENT" || echo)
+if [[ -z "${REVISION:-}" || -z "${CODE_SHA256:-}" ]]; then
+  echo "error: could not confirm the function's configuration; nothing was published." >&2
+  exit 1
+fi
 VERSION="$(aws lambda publish-version \
   --function-name "$FUNCTION_NAME" \
-  --revision-id "$(current_revision)" \
+  --revision-id "$REVISION" \
+  --code-sha256 "$CODE_SHA256" \
   --description "${IMAGE_DIGEST}" \
   --region "$AWS_REGION" \
   --query Version \
@@ -225,18 +272,29 @@ fi
 echo "==> Published version ${VERSION}"
 
 # 5. Move the alias, if one is named; the previous version is the rollback.
+# The update names the alias revision it read, so a concurrent move fails. A
+# weighted alias (traffic split across versions) is refused: moving only its
+# primary version would leave part of the traffic elsewhere.
 PREVIOUS_VERSION=""
 if [[ -n "$ALIAS_NAME" ]]; then
-  if PREVIOUS_VERSION="$(aws lambda get-alias --function-name "$FUNCTION_NAME" --name "$ALIAS_NAME" \
-      --region "$AWS_REGION" --query FunctionVersion --output text 2>/dev/null)"; then
+  if ALIAS="$(aws lambda get-alias --function-name "$FUNCTION_NAME" --name "$ALIAS_NAME" \
+      --region "$AWS_REGION" \
+      --query '[FunctionVersion, RevisionId, length(keys(RoutingConfig.AdditionalVersionWeights || `{}`))]' \
+      --output text 2>/dev/null)"; then
+    read -r PREVIOUS_VERSION ALIAS_REVISION ALIAS_WEIGHTS <<<"$ALIAS"
+    if [[ "$ALIAS_WEIGHTS" != "0" ]]; then
+      echo "error: alias ${ALIAS_NAME} splits traffic across versions; move it by hand." >&2
+      echo "       Version ${VERSION} is published and ready." >&2
+      exit 1
+    fi
     echo "==> Moving alias ${ALIAS_NAME}: ${PREVIOUS_VERSION} -> ${VERSION}"
     aws lambda update-alias \
       --function-name "$FUNCTION_NAME" \
       --name "$ALIAS_NAME" \
       --function-version "$VERSION" \
+      --revision-id "$ALIAS_REVISION" \
       --region "$AWS_REGION" >/dev/null
   else
-    PREVIOUS_VERSION=""
     echo "==> Creating alias ${ALIAS_NAME} -> ${VERSION}"
     aws lambda create-alias \
       --function-name "$FUNCTION_NAME" \
