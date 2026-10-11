@@ -1,5 +1,7 @@
 {
-  "$schema": "https://turbo.build/schema.json",
+  "$schema": "https://v2-11-7.turborepo.dev/schema.json",
+  "cacheMaxAge": "7d",
+  "cacheMaxSize": "10GB",
   "globalDependencies": [
     ".env",
     ".env.local",
@@ -21,6 +23,7 @@
         "dist/**",
         ".next/**",
         "!.next/cache/**",
+        "!.next/dev/**",
         "out/**"
       ]
     },
