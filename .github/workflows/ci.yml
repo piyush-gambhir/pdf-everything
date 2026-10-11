@@ -14,8 +14,18 @@ jobs:
   verify:
     name: Lint · Typecheck · Build · Test
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the Turborepo Remote Cache
     steps:
       - uses: actions/checkout@v7
+
+      - name: Set up Turborepo Remote Cache
+        # Fork and Dependabot PRs cannot request an OIDC token; they run with the local cache only.
+        if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
+        uses: vercel/setup-turborepo-remote-cache-action@49d7b1b46ba4c9251e1977986bfe18336feabc8f # v1.1.0
+        with:
+          team: piyushgambhir-personal
 
       - uses: pnpm/action-setup@v6
         with:
@@ -39,24 +49,12 @@ jobs:
 
       - name: Lint
         run: pnpm lint
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
       - name: Typecheck
         run: pnpm typecheck
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
       - name: Build
         run: pnpm build
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
       - name: Test
         run: pnpm test
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
