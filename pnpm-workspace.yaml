@@ -11,7 +11,7 @@ packages:
 minimumReleaseAgeExclude:
   - baseline-browser-mapping@2.11.4
 
-# pnpm 11 build-script allowlist. Native modules must be allowed to build or the
+# pnpm 12 build-script allowlist. Native modules must be allowed to build or the
 # backend crashes at runtime ("Could not locate the bindings file").
 allowBuilds:
   '@nestjs/core': true

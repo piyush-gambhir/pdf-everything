@@ -1,6 +1,6 @@
 # ---------- prepare: prune the workspace to what this image needs ----------
-FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS prepare
-RUN corepack enable && corepack prepare pnpm@11.15.0 --activate
+FROM --platform=$BUILDPLATFORM node:24.21.0-bookworm-slim AS prepare
+RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME/bin:$PNPM_HOME:$PATH
 ENV TURBO_TELEMETRY_DISABLED=1
@@ -10,9 +10,9 @@ RUN pnpm add -g turbo@^2
 COPY . .
 RUN turbo prune @pdf-everything/pdf-core-worker --docker
 
-FROM node:24-bookworm-slim AS base
+FROM node:24.21.0-bookworm-slim AS base
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@11.15.0 --activate
+RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME/bin:$PNPM_HOME:$PATH
 
@@ -32,7 +32,7 @@ RUN --mount=type=secret,id=turbo_token \
 RUN pnpm --filter @pdf-everything/pdf-core-worker deploy --prod --legacy /prod \
  && chmod -R a+rX /prod
 
-FROM node:24-bookworm-slim AS runner
+FROM node:24.21.0-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production PORT=8020
 LABEL org.opencontainers.image.source="https://github.com/piyush-gambhir/pdf-everything" \
