@@ -3,12 +3,12 @@
 # Alpine keeps only the newest build of a package in a branch, so when it ships
 # a Chromium update this build fails at `apk add` until CHROMIUM_VERSION is
 # bumped: a renderer change is always a deliberate commit.
-ARG NODE_IMAGE=node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
+ARG NODE_IMAGE=node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
 ARG CHROMIUM_VERSION=152.0.7977.82-r0
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@11.15.0 --activate
+RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
@@ -18,7 +18,7 @@ RUN pnpm run build
 
 FROM ${NODE_IMAGE} AS prod-deps
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@11.15.0 --activate
+RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
