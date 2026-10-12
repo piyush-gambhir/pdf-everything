@@ -213,7 +213,7 @@ estimates unless marked as measured.
   Chromium and its DevTools pipe after restore; compare with provisioned
   concurrency.
 - **Why:** AWS documentation now allows SnapStart for custom container images;
-  the image pins adapter 1.0.1 and lacks the opt-in. No BCT gain has been
+  the image pins adapter 1.1.0 but does not opt in. No BCT gain has been
   measured.
 - **Gain:** possibly lower cold latency; unknown.
 - **Effort:** 2–3 days for the experiment (estimate).
