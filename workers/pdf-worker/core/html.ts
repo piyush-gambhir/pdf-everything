@@ -63,13 +63,7 @@ export type RenderErrorCode = 'page_limit_exceeded' | 'output_too_large' | 'rend
  * templates), printing, checking the PDF, and closing the page.
  */
 export type RenderPhase =
-  | 'browser'
-  | 'newPage'
-  | 'setContent'
-  | 'postProcess'
-  | 'pdf'
-  | 'validate'
-  | 'close';
+  'browser' | 'newPage' | 'setContent' | 'postProcess' | 'pdf' | 'validate' | 'close';
 
 /**
  * How one render went, for an operator's log: how long each step took and how
