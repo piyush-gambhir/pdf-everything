@@ -167,8 +167,8 @@ importers:
   .:
     dependencies:
       marked:
-        specifier: ^15.0.12
-        version: 15.0.12
+        specifier: ^18.1.0
+        version: 18.1.0
       puppeteer-core:
         specifier: ^24.43.1
         version: 24.43.1
@@ -780,9 +780,9 @@ packages:
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
-  marked@15.0.12:
-    resolution: {integrity: sha512-8dD6FusOQSrpv9Z1rdNMdlSgQOIP880DHqnohobOmYLElGEqAL/JvxvuxZO16r4HtjTlfPRDC1hbvxC9dPN2nA==}
-    engines: {node: '>= 18'}
+  marked@18.1.0:
+    resolution: {integrity: sha512-PamYXWWWg2nboG3oX5Ffzpy3EFZROqZJK9hSlMmUnekp7TxPs5DcT95vwd46m73/exfKCRVMtgXoPMI4FEJL6w==}
+    engines: {node: '>= 20'}
     hasBin: true
 
   mitt@3.0.1:
@@ -1545,7 +1545,7 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  marked@15.0.12: {}
+  marked@18.1.0: {}
 
   mitt@3.0.1: {}
 

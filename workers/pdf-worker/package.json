@@ -21,7 +21,7 @@
     "format:check": "prettier --check \"core/**/*.ts\" \"deploy/docker/**/*.ts\" \"tests/**/*.ts\""
   },
   "dependencies": {
-    "marked": "^15.0.12",
+    "marked": "^18.1.0",
     "puppeteer-core": "^24.43.1"
   },
   "devDependencies": {
