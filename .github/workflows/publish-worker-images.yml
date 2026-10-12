@@ -40,7 +40,8 @@ jobs:
   publish-gateway:
     name: Publish Nest API gateway
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v7
@@ -94,7 +95,8 @@ jobs:
   publish-core:
     name: Publish pdf-core-worker
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v7
@@ -148,7 +150,8 @@ jobs:
   publish-standard:
     name: Publish pdf-worker
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v7
@@ -198,7 +201,8 @@ jobs:
   publish-lambda:
     name: Publish pdf-worker Lambda
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v7

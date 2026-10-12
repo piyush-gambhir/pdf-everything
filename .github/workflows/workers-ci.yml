@@ -23,6 +23,7 @@ jobs:
   verify-gateway:
     name: Verify Nest API gateway
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -77,6 +78,7 @@ jobs:
   verify-core:
     name: Verify pdf-core-worker
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -138,6 +140,7 @@ jobs:
   verify:
     name: Verify Chromium pdf-worker
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
