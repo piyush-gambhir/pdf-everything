@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "marked": "^18.1.0",
-    "puppeteer-core": "^24.43.1"
+    "puppeteer-core": "^25.13.0"
   },
   "devDependencies": {
     "@types/node": "^24",
