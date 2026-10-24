@@ -4,7 +4,7 @@
 # a Chromium update this build fails at `apk add` until CHROMIUM_VERSION is
 # bumped: a renderer change is always a deliberate commit.
 ARG NODE_IMAGE=node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
-ARG CHROMIUM_VERSION=152.0.7977.82-r0
+ARG CHROMIUM_VERSION=155.0.8059.84-r0
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
