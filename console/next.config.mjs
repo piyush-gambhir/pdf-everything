@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const config = {
+  experimental: { agentUpgrade: 'security' },
   // Static export -> Cloudflare Worker assets.
   //
   // NOTE: this is why the old `rewrites()` proxy for /api/* is gone. Rewrites

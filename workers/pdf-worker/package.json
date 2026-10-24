@@ -7,7 +7,7 @@
   "type": "module",
   "packageManager": "pnpm@12.11.2",
   "engines": {
-    "node": "24.x"
+    "node": ">=24.22.1 <25"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -21,7 +21,7 @@
     "format:check": "prettier --check \"core/**/*.ts\" \"deploy/docker/**/*.ts\" \"tests/**/*.ts\""
   },
   "dependencies": {
-    "marked": "^18.1.0",
+    "marked": "^18.1.1",
     "puppeteer-core": "^25.13.0"
   },
   "devDependencies": {
@@ -29,6 +29,6 @@
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   }
 }

@@ -4,6 +4,7 @@ const withMDX = createMDX();
 
 /** @type {import('next').NextConfig} */
 const config = {
+  experimental: { agentUpgrade: 'security' },
   // Static export -> Cloudflare Worker assets (staged under the basePath by
   // ../scripts/prepare-cloudflare-assets.mjs).
   output: 'export',

@@ -10,6 +10,24 @@ packages:
 # default 24-hour quarantine for later releases.
 minimumReleaseAgeExclude:
   - baseline-browser-mapping@2.11.4
+  - "@next/env@16.4.3"
+  - "@next/eslint-plugin-next@16.4.3"
+  - "@next/swc-darwin-arm64@16.4.3"
+  - "@next/swc-darwin-x64@16.4.3"
+  - "@next/swc-linux-arm64-gnu@16.4.3"
+  - "@next/swc-linux-arm64-musl@16.4.3"
+  - "@next/swc-linux-x64-gnu@16.4.3"
+  - "@next/swc-linux-x64-musl@16.4.3"
+  - "@next/swc-win32-arm64-msvc@16.4.3"
+  - "@next/swc-win32-x64-msvc@16.4.3"
+  - eslint-config-next@16.4.3
+  - next@16.4.3
+  - "@next/bundle-analyzer@16.4.3"
+  - vite@8.1.6
+  - zod@4.6.7
+  - body-parser@2.4.0
+  - multer@2.5.0
+  - undici@7.30.1
 
 # pnpm 12 build-script allowlist. Native modules must be allowed to run their
 # install scripts. better-sqlite3 13 ships prebuilt N-API binaries and has none.
@@ -27,9 +45,14 @@ allowBuilds:
 # vulnerable range of one major line. Drop an entry once its parents ship a
 # patched version on their own.
 overrides:
-  'browserslist@>=4.0.0 <4.28.7': '4.28.7'
-  'js-yaml@>=5.0.0 <5.4.1': '5.4.1'
-  'multer@>=2.0.0 <2.4.0': '2.4.0'
-  'nanoid@>=3.0.0 <3.3.18': '3.3.18'
-  'source-map-js@>=1.0.0 <1.2.2': '1.2.2'
-  'undici@>=7.0.0 <7.29.1': '7.29.1'
+  browserslist@>=4.0.0 <4.28.7: 4.28.7
+  js-yaml@>=5.0.0 <5.4.1: 5.4.1
+  multer@>=2.0.0 <2.4.0: 2.4.0
+  nanoid@>=3.0.0 <3.3.18: 3.3.18
+  source-map-js@>=1.0.0 <1.2.2: 1.2.2
+  undici@>=7.0.0 <7.29.1: 7.30.1
+  vite@>=8.0.0 <8.1.6: 8.1.6
+  zod@>=4.0.0 <4.6.7: 4.6.7
+  body-parser@>=2.0.0 <2.4.0: 2.4.0
+  multer@>=2.0.0 <2.5.0: 2.5.0
+  undici@>=7.0.0 <7.30.1: 7.30.1
