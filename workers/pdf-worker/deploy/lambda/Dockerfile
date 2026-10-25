@@ -22,7 +22,7 @@
 # Alpine keeps only the newest build of a package in a branch, so when it ships
 # a Chromium update this build fails at `apk add` until CHROMIUM_VERSION is
 # bumped: a renderer change is always a deliberate commit.
-ARG NODE_IMAGE=node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+ARG NODE_IMAGE=node:26.12.1-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797
 ARG CHROMIUM_VERSION=155.0.8059.84-r0
 ARG LAMBDA_ADAPTER_IMAGE=public.ecr.aws/awsguru/aws-lambda-adapter:1.1.0@sha256:17cfd08eff1dfea3f6a9a1e9c65fdac80aa4919b6085e746615530f43f57d2f1
 
@@ -30,7 +30,7 @@ FROM ${LAMBDA_ADAPTER_IMAGE} AS lambda-adapter
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
+RUN npm install --global pnpm@12.15.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
@@ -40,7 +40,7 @@ RUN pnpm run build
 
 FROM ${NODE_IMAGE} AS prod-deps
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
+RUN npm install --global pnpm@12.15.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
