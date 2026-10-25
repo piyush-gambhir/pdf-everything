@@ -24,9 +24,16 @@
 # bumped: a renderer change is always a deliberate commit.
 ARG NODE_IMAGE=node:26.12.1-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797
 ARG CHROMIUM_VERSION=155.0.8059.84-r0
-ARG LAMBDA_ADAPTER_IMAGE=public.ecr.aws/awsguru/aws-lambda-adapter:1.1.0@sha256:17cfd08eff1dfea3f6a9a1e9c65fdac80aa4919b6085e746615530f43f57d2f1
+# Child manifests of the official 1.1.0 index:
+# sha256:17cfd08eff1dfea3f6a9a1e9c65fdac80aa4919b6085e746615530f43f57d2f1.
+# Pin each architecture directly: publishing runners hit HTTP 429 on the index.
+ARG LAMBDA_ADAPTER_ARM64_IMAGE=public.ecr.aws/awsguru/aws-lambda-adapter@sha256:98d6d1dc9ad3f18c6af7baaa397fb033a57d82f5bffb58ff33bef1c2e1f4f0fe
+ARG LAMBDA_ADAPTER_AMD64_IMAGE=public.ecr.aws/awsguru/aws-lambda-adapter@sha256:9d6b29a45b14a4a70f88d53c68b6d5bab1b22d75baca733958fee59308c509b8
+ARG TARGETARCH
 
-FROM ${LAMBDA_ADAPTER_IMAGE} AS lambda-adapter
+FROM ${LAMBDA_ADAPTER_ARM64_IMAGE} AS lambda-adapter-arm64
+FROM ${LAMBDA_ADAPTER_AMD64_IMAGE} AS lambda-adapter-amd64
+FROM lambda-adapter-${TARGETARCH} AS lambda-adapter
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
@@ -48,8 +55,7 @@ FROM ${NODE_IMAGE} AS runner
 ARG CHROMIUM_VERSION
 WORKDIR /app
 
-# Lambda Web Adapter (the index digest covers both architectures; buildx takes
-# the one matching --platform).
+# Copy the adapter from the manifest selected for the target architecture.
 COPY --from=lambda-adapter /lambda-adapter /opt/extensions/lambda-adapter
 
 # The server and adapter share port 8080. The adapter's readiness check is
