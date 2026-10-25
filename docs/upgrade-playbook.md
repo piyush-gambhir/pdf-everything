@@ -117,12 +117,13 @@ three locally built `node26-final` images used in this review.
   through ESLint 9; upgrading to ESLint 10 would violate that peer requirement.
   Every other direct dependency is current according to `pnpm outdated` for
   both lockfiles at review time.
-- An earlier main-branch Lambda publish failed with an AWS Public ECR HTTP 429.
-  The verification jobs passed in that run. Treat registry failures separately
-  from application failures. The Node 26 release also hit the same index lookup
-  on three attempts. Pinning the official index's arm64 and amd64 child manifests
-  avoids that lookup while preserving adapter version 1.1.0 and its binaries.
-  Both architecture stages were exported and the local Lambda image rebuilt.
+- AWS Public ECR returned HTTP 429 (`Data limit exceeded`) from shared GitHub
+  runners. Three retries failed, and direct architecture-manifest pins also
+  hit the quota. Those pins were reverted. Authenticated public ECR pulls via
+  a dedicated GitHub OIDC role address the anonymous quota without storing AWS
+  access keys. The role can only obtain public-registry pull tokens, with trust
+  restricted to this repository's main branch and pull requests. Its setup
+  requires explicit approval for IAM changes and a current personal AWS login.
 
 The Lambda image build is verified locally. An actual AWS Lambda invocation,
 production deployment, and multi-architecture publication are separate release
