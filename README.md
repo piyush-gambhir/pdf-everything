@@ -35,8 +35,8 @@ pnpm dev
 
 # Chromium worker has an independent lockfile
 cd workers/pdf-worker
-corepack pnpm install
-corepack pnpm dev
+pnpm install
+pnpm dev
 ```
 
 | Surface         | Local URL                                     |
@@ -61,3 +61,26 @@ evidence, effort, and the owner question it needs answered.
 ```bash
 pnpm lint && pnpm typecheck && pnpm build && pnpm test
 ```
+
+### TypeScript versions
+
+All workspace `tsc` commands use TypeScript 7.0.2. The shared types package and
+both PDF workers also compile with TypeScript 7.
+
+The backend, console, and documentation site install TypeScript 7 as
+`@typescript/native`, alongside Microsoft's TypeScript 6 compatibility package
+aliased as `typescript`. This keeps the `tsc` command on version 7 while tools
+that import the compiler API receive version 6.0.3. The compatibility package
+provides `tsc6`, so the two packages do not compete for the `tsc` executable.
+
+Nest build/watch and the Next.js built-in build checks still use TypeScript 6.
+ESLint also needs its compiler API. The separate `pnpm typecheck` runs TypeScript
+7 against every workspace, including generated Next.js route types.
+
+Both checks matter: compiler versions can disagree on diagnostics or declaration
+files. New syntax accepted by TypeScript 7 can also fail in API-based tools still
+using version 6. Keep source and shared declarations compatible with both until
+those tools support the newer API. Replacing the `typescript` alias with version
+7 directly would remove the API that Nest and ESLint require.
+
+See Microsoft's [side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0).
