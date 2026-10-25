@@ -32,7 +32,7 @@ jobs:
           dockerfile: workers/pdf-core-worker/Dockerfile
           context: .
         - image: pdf-everything-pdf-worker
-          dockerfile: workers/pdf-worker/deploy/docker/Dockerfile
+          dockerfile: deploy/docker/Dockerfile
           context: workers/pdf-worker
     uses: docker/github-builder/.github/workflows/build.yml@cbc9d42f8c89a55623392aadd03600965b80e963
     permissions:
