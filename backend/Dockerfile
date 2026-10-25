@@ -1,6 +1,6 @@
 # ---------- prepare: prune the workspace to what this image needs ----------
-FROM --platform=$BUILDPLATFORM node:24.22.1-bookworm-slim AS prepare
-RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
+FROM --platform=$BUILDPLATFORM node:26.12.1-bookworm-slim AS prepare
+RUN npm install --global --allow-scripts=pnpm pnpm@12.15.0
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME/bin:$PNPM_HOME:$PATH
 ENV TURBO_TELEMETRY_DISABLED=1
@@ -10,9 +10,9 @@ RUN pnpm add -g turbo@^2
 COPY . .
 RUN turbo prune @pdf-everything/backend --docker
 
-FROM node:24.22.1-bookworm-slim AS base
+FROM node:26.12.1-bookworm-slim AS base
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
+RUN npm install --global --allow-scripts=pnpm pnpm@12.15.0
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME/bin:$PNPM_HOME:$PATH
 
@@ -32,7 +32,7 @@ RUN --mount=type=secret,id=turbo_token \
 RUN pnpm --filter @pdf-everything/backend deploy --prod --legacy /prod \
  && chmod -R a+rX /prod
 
-FROM node:24.22.1-bookworm-slim AS runner
+FROM node:26.12.1-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     API_PORT=3001 \

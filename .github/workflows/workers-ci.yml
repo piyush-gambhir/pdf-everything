@@ -7,6 +7,8 @@ on:
       - 'workers/**'
       - 'backend/**'
       - 'types/**'
+      - 'scripts/verify-stack.mjs'
+      - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/workers-ci.yml'
@@ -20,6 +22,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  verify-stack:
+    name: Verify all operations through the gateway
+    # The x64 runner includes Chrome for the compiled-stack check.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.15.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26.12.1'
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            workers/pdf-worker/pnpm-lock.yaml
+
+      - name: Install and build the API and workers
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @pdf-everything/types build
+          pnpm --filter @pdf-everything/backend build
+          pnpm --filter @pdf-everything/pdf-core-worker build
+          pnpm --dir workers/pdf-worker install --frozen-lockfile
+          pnpm --dir workers/pdf-worker build
+
+      - name: Verify all 19 operations and file lifecycle
+        run: pnpm verify:stack
+
   verify-gateway:
     name: Verify Nest API gateway
     runs-on: ubuntu-24.04-arm
@@ -30,11 +65,11 @@ jobs:
 
       - uses: pnpm/action-setup@v6
         with:
-          version: 12.11.2
+          version: 12.15.0
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '24.22.1'
+          node-version: '26.12.1'
           cache: pnpm
 
       - name: Install dependencies
@@ -85,11 +120,11 @@ jobs:
 
       - uses: pnpm/action-setup@v6
         with:
-          version: 12.11.2
+          version: 12.15.0
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '24.22.1'
+          node-version: '26.12.1'
           cache: pnpm
 
       - name: Install dependencies
@@ -149,7 +184,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '24.22.1'
+          node-version: '26.12.1'
           cache: pnpm
           cache-dependency-path: workers/pdf-worker/pnpm-lock.yaml
 
