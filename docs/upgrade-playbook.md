@@ -1,8 +1,25 @@
 # Node and dependency upgrade playbook
 
-PDF Everything is the first completed local verification pass, dated 25 October 2026. The comparison base is `2b7b3d8` on `main`. Review and CI results belong to
-the upgrade branch until that branch is merged. A passing local build does not
-establish that production is running it.
+PDF Everything is the first completed local verification pass, dated 25 October
+2026. The comparison base is `2b7b3d8`. The upgrade and runtime fixes are merged
+through [PR #25](https://github.com/piyush-gambhir/pdf-everything/pull/25).
+A passing build does not establish that production is running it.
+
+## Publication status
+
+| Component | Status |
+| --------- | ------ |
+| API, PDF core, Chromium renderer | Published for amd64 and arm64 at `sha-697a999e9165a533c1de37663c1c98f6d6ec85b8`; downloaded arm64 images pass all 22 gateway checks across 19 operations |
+| Lambda renderer | Local image verification passes; publication deferred by the owner because AWS Public ECR limits anonymous shared runners |
+| Console and documentation site | Builds verified; console browser workflows pass; no live deployment performed |
+
+[Main CI](https://github.com/piyush-gambhir/pdf-everything/actions/runs/40216318277)
+passes for runtime/workflow commit `d77f563`. Its
+[publication run](https://github.com/piyush-gambhir/pdf-everything/actions/runs/40216318297)
+fails while downloading the Lambda adapter. The optional OIDC authentication
+workflow is merged, but the owner chose to keep AWS unchanged. No IAM role or
+repository authentication variable was created. Keep Lambda publication pending
+until a later authorized release attempt succeeds.
 
 ## PDF Everything results
 
@@ -113,17 +130,20 @@ three locally built `node26-final` images used in this review.
 - Keep the Microsoft TypeScript 6 compatibility alias where tools import the
   compiler API. Separate TypeScript 7 checks and TypeScript 6 builds must both
   pass. New syntax and declaration output can otherwise diverge between tools.
+  Check the actual compiler versions: npm aliases can expose the same `tsc`
+  executable. Use explicit compiler paths or the compatibility package's
+  distinct `tsc6` executable when verifying both versions.
 - ESLint stays on 9.39.5. The latest `eslint-plugin-react` 7.37.5 declares support
   through ESLint 9; upgrading to ESLint 10 would violate that peer requirement.
   Every other direct dependency is current according to `pnpm outdated` for
   both lockfiles at review time.
 - AWS Public ECR returned HTTP 429 (`Data limit exceeded`) from shared GitHub
   runners. Three retries failed, and direct architecture-manifest pins also
-  hit the quota. Those pins were reverted. Authenticated public ECR pulls via
-  a dedicated GitHub OIDC role address the anonymous quota without storing AWS
-  access keys. The role can only obtain public-registry pull tokens, with trust
-  restricted to this repository's main branch and pull requests. Its setup
-  requires explicit approval for IAM changes and a current personal AWS login.
+  hit the quota. Those pins were reverted. An optional workflow supports
+  authenticated public ECR pulls via a dedicated GitHub OIDC role without
+  storing AWS access keys. The proposed role can only obtain public-registry
+  pull tokens, with trust restricted to this repository's main branch and pull
+  requests. The owner deferred that setup and chose to keep AWS unchanged.
 
 The Lambda image build is verified locally. An actual AWS Lambda invocation,
 production deployment, and multi-architecture publication are separate release
