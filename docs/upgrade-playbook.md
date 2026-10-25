@@ -51,9 +51,56 @@ node scripts/benchmark-typecheck.mjs
 ```
 
 This is a compiler comparison, not a complete build benchmark. Nest and Next.js
-still use the TypeScript 6 API during their builds. PDF throughput, peak memory,
-production latency, and hosting cost have not been benchmarked; no numerical
-improvement is claimed for those measures.
+still use the TypeScript 6 API during their builds. PDF processing measurements
+are recorded separately below; no production latency or cost improvement is
+claimed.
+
+### Measured PDF processing speed
+
+Two independent passes compared the published Node 24.22.1 stack at `2b7b3d8`
+with the reviewed Node 26.12.1 images. Each operation ran sequentially through
+Nest and the real worker, with five warm-ups and 30 samples per version in each
+pass. Before/after order alternated. All six containers had the same two-CPU and
+1 GiB memory limits, on the same arm64 Docker host. Both renderers used Chromium
+155.0.8059.84. Inputs were byte-identical in both passes.
+
+Each cell is the median request latency from the previous stack to the upgrade:
+
+| Workload                          |           Pass 1 |           Pass 2 |
+| --------------------------------- | ---------------: | ---------------: |
+| Merge 10 PDFs (200 pages)         |   35.8 → 36.5 ms |   46.1 → 44.8 ms |
+| Split 100 pages into 10 files     |   17.9 → 18.6 ms |   23.6 → 21.1 ms |
+| Rotate 100 pages                  |   19.4 → 19.9 ms |   22.2 → 22.0 ms |
+| Watermark 100 pages               |   29.9 → 30.1 ms |   38.3 → 37.2 ms |
+| Extract text from 100 pages       |   97.4 → 81.5 ms |  110.4 → 98.6 ms |
+| Convert 4 JPEGs (1200x900) to PDF |   55.9 → 45.4 ms |   65.0 → 55.0 ms |
+| Render HTML (10 pages)            |   95.3 → 93.4 ms | 125.8 → 124.8 ms |
+| Render Markdown (30 sections)     | 131.4 → 129.0 ms | 155.3 → 150.5 ms |
+
+Text extraction had **10.7–16.3% lower median latency**, and image-to-PDF had
+**15.3–18.8% lower median latency**, across these two runs. HTML and Markdown
+medians improved by approximately 1–3%. Merge, split, rotation, and watermark
+results varied in direction between passes, so they do not establish a speedup.
+The first pass included small median regressions in those operations.
+
+These are synthetic text PDFs and deterministic noisy JPEGs, not a production
+corpus. The development host had other activity; absolute times and tail latency
+varied between passes. This tests the complete runtime/dependency upgrade and
+does not isolate Node.js as the cause of a change. Cold starts, concurrency,
+production network latency, peak memory, and cost were not measured.
+
+The [raw samples and image IDs](benchmarks/pdf-processing-2026-10-25.json) retain
+both passes and p95 values. Reproduce against immutable published image tags:
+
+```bash
+node scripts/benchmark-pdf.mjs sha-<previous-commit> sha-<upgraded-commit>
+```
+
+The script verifies output status, page counts, rotations, extracted text, and
+split downloads before collecting timings, then deletes its disposable storage
+and containers. It writes the latest sample report to
+`.git/pdf-processing-benchmark.json`. The `local` second argument selects the
+three locally built `node26-final` images used in this review.
 
 ### Compatibility decisions and fixes
 
