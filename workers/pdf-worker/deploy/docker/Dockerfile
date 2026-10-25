@@ -8,7 +8,7 @@ ARG CHROMIUM_VERSION=155.0.8059.84-r0
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
-RUN npm install --global pnpm@12.15.0
+RUN npm install --global --allow-scripts=pnpm pnpm@12.15.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
@@ -18,7 +18,7 @@ RUN pnpm run build
 
 FROM ${NODE_IMAGE} AS prod-deps
 WORKDIR /app
-RUN npm install --global pnpm@12.15.0
+RUN npm install --global --allow-scripts=pnpm pnpm@12.15.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 

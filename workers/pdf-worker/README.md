@@ -12,8 +12,8 @@ deployment lifecycle.
 ## Quick start
 
 ```bash
-corepack pnpm install
-corepack pnpm dev
+pnpm install
+pnpm dev
 ```
 
 Or run the standard container:
@@ -26,8 +26,8 @@ docker run --rm -p 8010:8010 pdf-worker
 Verification is split intentionally:
 
 ```bash
-corepack pnpm test              # deterministic unit and HTTP tests
-corepack pnpm test:integration  # real locally installed Chromium
+pnpm test              # deterministic unit and HTTP tests
+pnpm test:integration  # real locally installed Chromium
 sh scripts/integration-in-docker.sh <image>  # the same, inside a built image (CI)
 ```
 
@@ -167,7 +167,7 @@ await shutdownBrowser();
 The Markdown CLI remains available:
 
 ```bash
-corepack pnpm render input.md --template academic --out output.pdf
+pnpm render input.md --template academic --out output.pdf
 ```
 
 ## License

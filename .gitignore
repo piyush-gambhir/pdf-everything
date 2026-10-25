@@ -17,3 +17,6 @@ coverage
 out
 .wrangler
 .cloudflare
+
+# Disposable documents created by verify:stack
+/.verification-*/

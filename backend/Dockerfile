@@ -1,6 +1,6 @@
 # ---------- prepare: prune the workspace to what this image needs ----------
 FROM --platform=$BUILDPLATFORM node:26.12.1-bookworm-slim AS prepare
-RUN npm install --global pnpm@12.15.0
+RUN npm install --global --allow-scripts=pnpm pnpm@12.15.0
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME/bin:$PNPM_HOME:$PATH
 ENV TURBO_TELEMETRY_DISABLED=1
@@ -12,7 +12,7 @@ RUN turbo prune @pdf-everything/backend --docker
 
 FROM node:26.12.1-bookworm-slim AS base
 WORKDIR /app
-RUN npm install --global pnpm@12.15.0
+RUN npm install --global --allow-scripts=pnpm pnpm@12.15.0
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME/bin:$PNPM_HOME:$PATH
 

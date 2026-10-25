@@ -52,15 +52,26 @@ Read the [documentation](web/content/docs/index.mdx) or the complete
 [deployment guide](web/content/docs/deployment.mdx).
 
 See the [maintenance review](docs/maintenance-review.md) for cleanup findings,
-remaining reliability work, and proposed feature priorities, and the
+remaining reliability work, and the
 [roadmap](docs/ROADMAP.md) for the bigger planned work, each item with its
 evidence, effort, and the owner question it needs answered.
 
 ## Verify
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm build && pnpm test
+pnpm lint && pnpm typecheck && pnpm test && pnpm build
+pnpm --dir workers/pdf-worker install --frozen-lockfile
+pnpm --dir workers/pdf-worker build
+pnpm --dir workers/pdf-worker test
+pnpm --dir workers/pdf-worker test:integration
+pnpm verify:stack
 ```
+
+`verify:stack` needs a locally installed Chrome/Chromium and the compiled API,
+shared types, and both workers. It starts isolated local processes, checks all 19
+operations and file storage through the gateway, then removes its temporary
+documents. See the [upgrade playbook](docs/upgrade-playbook.md) for container,
+browser, and dependency verification.
 
 ### TypeScript versions
 

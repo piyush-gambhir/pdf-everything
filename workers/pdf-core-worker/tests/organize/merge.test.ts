@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mergePdfs } from '../../core/organize/merge.js';
 import { EmptyInputError } from '../../core/shared/errors.js';
-import { makePdf, pageCount, pageTexts } from '../fixtures.js';
+import { makePdf, pageTexts } from '../fixtures.js';
 
 describe('mergePdfs', () => {
   it('merges two PDFs by concatenating pages', async () => {
@@ -14,7 +14,7 @@ describe('mergePdfs', () => {
   it('handles a single PDF input', async () => {
     const a = await makePdf(4);
     const out = await mergePdfs([a]);
-    expect(await pageCount(out)).toBe(4);
+    expect(await pageTexts(out)).toEqual(['P1', 'P2', 'P3', 'P4']);
   });
 
   it('throws on empty input', async () => {

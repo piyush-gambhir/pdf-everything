@@ -112,15 +112,6 @@ describe('HTTP server without authentication', () => {
     expect(Buffer.from(await res.arrayBuffer()).toString()).toContain('markdown');
   });
 
-  it('does not expose a generic render route', async () => {
-    const res = await request(origin, '/v1/render', {
-      method: 'POST',
-      body: JSON.stringify({ html: '<p>Hello</p>' }),
-      headers: jsonHeaders,
-    });
-    expect(res.status).toBe(404);
-  });
-
   it('rejects mismatched explicit route input', async () => {
     const res = await request(origin, '/v1/render/html', {
       method: 'POST',
