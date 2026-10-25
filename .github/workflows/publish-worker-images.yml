@@ -199,6 +199,7 @@ jobs:
           push-to-registry: true
 
   publish-lambda:
+    if: vars.PUBLISH_PDF_LAMBDA == 'true'
     name: Publish pdf-worker Lambda
     needs: verify
     runs-on: ubuntu-24.04
