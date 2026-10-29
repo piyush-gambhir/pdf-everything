@@ -22,7 +22,7 @@
 # Alpine keeps only the newest build of a package in a branch, so when it ships
 # a Chromium update this build fails at `apk add` until CHROMIUM_VERSION is
 # bumped: a renderer change is always a deliberate commit.
-ARG NODE_IMAGE=node:26.12.1-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797
+ARG NODE_IMAGE=node:26.13.0-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94
 ARG CHROMIUM_VERSION=155.0.8059.84-r0
 ARG LAMBDA_ADAPTER_IMAGE=public.ecr.aws/awsguru/aws-lambda-adapter:1.1.0@sha256:17cfd08eff1dfea3f6a9a1e9c65fdac80aa4919b6085e746615530f43f57d2f1
 
