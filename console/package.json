@@ -13,7 +13,9 @@
     "clean": "rm -rf .next",
     "deploy": "pnpm build:cloudflare && wrangler deploy",
     "preview": "wrangler dev",
-    "build:cloudflare": "next build && node ../scripts/prepare-cloudflare-assets.mjs pdf-everything/console"
+    "build:cloudflare": "next build && node ../scripts/prepare-cloudflare-assets.mjs pdf-everything/console",
+    "bundle:analyze": "next analyze --output",
+    "bundle:export": "next analyze export"
   },
   "dependencies": {
     "@pdf-everything/types": "workspace:*",
