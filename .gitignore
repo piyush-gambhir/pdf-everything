@@ -20,3 +20,6 @@ out
 
 # Disposable documents created by verify:stack
 /.verification-*/
+
+# Local bundle graph exports
+/.bundle-analysis/
