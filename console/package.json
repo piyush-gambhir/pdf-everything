@@ -13,7 +13,9 @@
     "clean": "rm -rf .next",
     "deploy": "pnpm build:cloudflare && wrangler deploy",
     "preview": "wrangler dev",
-    "build:cloudflare": "next build && node ../scripts/prepare-cloudflare-assets.mjs pdf-everything/console"
+    "build:cloudflare": "next build && node ../scripts/prepare-cloudflare-assets.mjs pdf-everything/console",
+    "bundle:analyze": "next analyze --output",
+    "bundle:export": "next analyze export"
   },
   "dependencies": {
     "@pdf-everything/types": "workspace:*",
@@ -45,5 +47,8 @@
     "tailwindcss": "^4.3.3",
     "typescript": "npm:@typescript/typescript6@~6.0.2",
     "wrangler": "^4.152.0"
+  },
+  "engines": {
+    "node": "26.x"
   }
 }
