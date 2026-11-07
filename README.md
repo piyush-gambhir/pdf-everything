@@ -3,6 +3,29 @@
 An open-source PDF console, REST API, and worker stack. Nineteen operations are
 available through the visual console and the same versioned public endpoints.
 
+![The console's tool list, grouped by category](docs/images/console-home.png)
+
+## Operations
+
+| Group            | Operations                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| Organize         | Merge, split (by page ranges or one file per page), rotate, remove, extract, reorder, crop |
+| Edit             | Text watermark, page numbers, metadata                                                     |
+| Convert to PDF   | Images, HTML, Markdown (GitHub, academic, and root-cause analysis templates)               |
+| Convert from PDF | Extract text                                                                               |
+| Forms            | Fill, flatten, extract field data                                                          |
+| Other            | Resize pages, convert page size (A3, A4, A5, Letter, Legal)                                |
+
+Each operation is a `POST` endpoint under `/api/v1`, listed in Swagger UI. Every
+console page shows the endpoint it calls.
+
+<p>
+  <img src="docs/images/console-merge.png" alt="Merge PDFs with three files queued" width="49%">
+  <img src="docs/images/console-extract-text.png" alt="Extract Text showing the text of the merged file" width="49%">
+</p>
+
+Merging three PDFs (left) and the text extracted from the merged file (right).
+
 ## Stack
 
 - **Monorepo**: pnpm workspaces + Turborepo
