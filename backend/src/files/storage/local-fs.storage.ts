@@ -141,8 +141,7 @@ export class LocalFsStorage implements StorageService, OnModuleInit, OnModuleDes
       if (!others || others.c === 0) {
         try {
           await unlink(join(this.rootDir, row.path));
-        } catch {
-        }
+        } catch {}
       }
       return true;
     });

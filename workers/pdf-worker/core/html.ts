@@ -454,6 +454,5 @@ function report(onTimings: RenderRuntime['onTimings'], timings: RenderTimings): 
   try {
     const reported = onTimings?.(timings);
     if (reported instanceof Promise) reported.catch(() => undefined);
-  } catch {
-  }
+  } catch {}
 }
