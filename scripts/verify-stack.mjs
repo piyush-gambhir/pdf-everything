@@ -12,7 +12,6 @@ const sharp = require('sharp');
 const { getDocument } = await import(
   pathToFileURL(require.resolve('pdfjs-dist/legacy/build/pdf.mjs'))
 );
-// Keep verification documents separate from application storage.
 const storage = await mkdtemp(resolve(root, '.verification-'));
 const children = [];
 const events = [];

@@ -1,9 +1,5 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 
-/**
- * The console is a separate static app. Production uses same-origin path
- * routing; local development uses the console's own Next.js server.
- */
 const configuredConsoleOrigin = process.env.NEXT_PUBLIC_CONSOLE_ORIGIN?.replace(/\/+$/, '');
 
 export const CONSOLE_URL = configuredConsoleOrigin

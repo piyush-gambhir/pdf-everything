@@ -69,8 +69,6 @@ export function SiteSidebar() {
               <ul className="space-y-0.5">
                 {tools.map((t) => {
                   const href = `/${t.id}`
-                  // `trailingSlash: true` yields "/merge/", so compare on the
-                  // normalised segment rather than the raw pathname.
                   const active = pathname.replace(/^\/+|\/+$/g, "") === t.id
                   const Icon = t.Icon
                   return (

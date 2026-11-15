@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { renderHtmlToPdf, shutdownBrowser, type RenderTimings } from '../../core/html.js';
 
-/** A "browser" that records each start, waits, and exits without a DevTools pipe. */
 function failingBrowser(seconds: number) {
   const dir = mkdtempSync(join(tmpdir(), 'pdf-worker-browser-'));
   const starts = join(dir, 'starts');

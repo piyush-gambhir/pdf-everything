@@ -142,7 +142,6 @@ export class LocalFsStorage implements StorageService, OnModuleInit, OnModuleDes
         try {
           await unlink(join(this.rootDir, row.path));
         } catch {
-          // best-effort
         }
       }
       return true;
@@ -158,8 +157,6 @@ export class LocalFsStorage implements StorageService, OnModuleInit, OnModuleDes
     return expired.length;
   }
 
-  // Keep content writes and reference deletion together so cleanup cannot
-  // unlink a deduplicated file while a new upload is registering its reference.
   private mutate<T>(action: () => Promise<T>): Promise<T> {
     const result = this.mutation.then(action);
     this.mutation = result.catch(() => undefined);

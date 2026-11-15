@@ -1,21 +1,4 @@
 #!/usr/bin/env bash
-# Deploy pdf-worker to AWS Lambda as a container image (Function URL).
-#
-# Builds deploy/lambda/Dockerfile and pushes it to ECR (or takes an image
-# already in ECR by IMAGE_DIGEST), points the function at that exact digest,
-# publishes a version and, when ALIAS_NAME is set, moves the alias to it.
-#
-# The function's existing configuration is kept: its environment variables
-# survive (API_TOKEN, when set, is merged into them), and memory and timeout
-# change only when MEMORY_MB or TIMEOUT_S is set. Every update names the
-# revision it read, so a change made meanwhile fails the deploy instead of
-# being overwritten. Idempotent: safe to re-run.
-#
-#   bash scripts/deploy-lambda.sh
-#
-# Reads config from .env.deploy.lambda (gitignored). See .env.deploy.example.
-# Requires: aws CLI v2, node (to merge the environment), AWS credentials in
-# the env, and docker with buildx unless IMAGE_DIGEST is set.
 
 set -euo pipefail
 
@@ -34,20 +17,18 @@ set -a
 source "$ENV_FILE"
 set +a
 
-# --- required ---
 : "${AWS_REGION:?set AWS_REGION in ${ENV_FILE}}"
 : "${ECR_REPOSITORY:?set ECR_REPOSITORY in ${ENV_FILE} (e.g. pdf-everything-pdf-worker)}"
 : "${FUNCTION_NAME:?set FUNCTION_NAME in ${ENV_FILE}}"
 : "${LAMBDA_EXECUTION_ROLE_ARN:?set LAMBDA_EXECUTION_ROLE_ARN in ${ENV_FILE}}"
 
-# --- optional ---
-ARCHITECTURE="${ARCHITECTURE:-arm64}"          # arm64 | x86_64
-MEMORY_MB="${MEMORY_MB:-}"                     # unset keeps the function's (2048 on create)
-TIMEOUT_S="${TIMEOUT_S:-}"                     # unset keeps the function's (60 on create)
-FUNCTION_URL_AUTH="${FUNCTION_URL_AUTH:-AWS_IAM}"  # AWS_IAM | NONE (NONE = public!)
-API_TOKEN="${API_TOKEN:-}"                     # bearer token enforced on render routes
-IMAGE_DIGEST="${IMAGE_DIGEST:-}"               # sha256:... already in ECR_REPOSITORY; skips the build
-ALIAS_NAME="${ALIAS_NAME:-}"                   # alias moved to the new version, e.g. live
+ARCHITECTURE="${ARCHITECTURE:-arm64}"
+MEMORY_MB="${MEMORY_MB:-}"
+TIMEOUT_S="${TIMEOUT_S:-}"
+FUNCTION_URL_AUTH="${FUNCTION_URL_AUTH:-AWS_IAM}"
+API_TOKEN="${API_TOKEN:-}"
+IMAGE_DIGEST="${IMAGE_DIGEST:-}"
+ALIAS_NAME="${ALIAS_NAME:-}"
 
 case "$ARCHITECTURE" in
   arm64)  DOCKER_PLATFORM="linux/arm64" ;;
@@ -60,7 +41,6 @@ if [[ -n "$IMAGE_DIGEST" && ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
   exit 1
 fi
 
-# Scratch files (the merged environment holds secrets): private, removed on exit.
 umask 077
 SCRATCH="$(mktemp -d)"
 trap 'rm -rf "$SCRATCH"' EXIT
@@ -71,7 +51,6 @@ ECR_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}"
 
 echo "==> Account ${ACCOUNT_ID} | region ${AWS_REGION} | arch ${ARCHITECTURE}"
 
-# 1. The image: build and push one, or take the given digest.
 if [[ -z "$IMAGE_DIGEST" ]]; then
   if ! aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" --region "$AWS_REGION" >/dev/null 2>&1; then
     echo "==> Creating ECR repository ${ECR_REPOSITORY}"
@@ -84,8 +63,6 @@ if [[ -z "$IMAGE_DIGEST" ]]; then
 
   GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo manual)"
   TAG="${GIT_SHA}-$(date -u +%Y%m%d%H%M%S)"
-  # --provenance=false avoids the OCI image index that Lambda's image loader
-  # rejects. The tag is for people; the function is pointed at the digest.
   echo "==> Building and pushing ${ECR_URI}:${TAG}"
   docker buildx build \
     --platform "$DOCKER_PLATFORM" \
@@ -105,7 +82,6 @@ if [[ -z "$IMAGE_DIGEST" ]]; then
   fi
 fi
 
-# 2. Verify ECR holds that digest as a single-platform image, not an index.
 MEDIA_TYPE="$(aws ecr describe-images \
   --repository-name "$ECR_REPOSITORY" \
   --image-ids "imageDigest=${IMAGE_DIGEST}" \
@@ -123,10 +99,6 @@ esac
 IMAGE_URI="${ECR_URI}@${IMAGE_DIGEST}"
 echo "==> Image ${IMAGE_URI}"
 
-# The function's current environment with API_TOKEN merged in, written to a
-# private file for --environment, and the revision the variables came from.
-# A caller that cannot decrypt the variables gets Environment.Error instead of
-# them; merging into nothing would erase them, so that stops the deploy.
 merged_environment() {
   aws lambda get-function-configuration \
     --function-name "$FUNCTION_NAME" \
@@ -156,10 +128,8 @@ current_revision() {
     --output text
 }
 
-# What this run sets, checked again before publishing.
 SET_MEMORY="" SET_TIMEOUT="" SET_ENVIRONMENT=""
 
-# 3. Create the function, or update its code and only the settings asked for.
 if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$AWS_REGION" >/dev/null 2>&1; then
   echo "==> Updating function code: ${FUNCTION_NAME}"
   aws lambda update-function-code \
@@ -217,10 +187,6 @@ else
   aws lambda wait function-updated --function-name "$FUNCTION_NAME" --region "$AWS_REGION"
 fi
 
-# 4. Publish what this run made. Lambda may give the function a new revision
-# when an update finishes, so the revision is read once the updates are done,
-# after checking the function still has what this run set; the publish then
-# names that revision and code hash, and the version must run the digest.
 read -r REVISION CODE_SHA256 < <(aws lambda get-function-configuration \
     --function-name "$FUNCTION_NAME" \
     --region "$AWS_REGION" \
@@ -271,10 +237,6 @@ if [[ "$RESOLVED" != *"@${IMAGE_DIGEST}" ]]; then
 fi
 echo "==> Published version ${VERSION}"
 
-# 5. Move the alias, if one is named; the previous version is the rollback.
-# The update names the alias revision it read, so a concurrent move fails. A
-# weighted alias (traffic split across versions) is refused: moving only its
-# primary version would leave part of the traffic elsewhere.
 PREVIOUS_VERSION=""
 if [[ -n "$ALIAS_NAME" ]]; then
   if ALIAS="$(aws lambda get-alias --function-name "$FUNCTION_NAME" --name "$ALIAS_NAME" \
@@ -304,7 +266,6 @@ if [[ -n "$ALIAS_NAME" ]]; then
   fi
 fi
 
-# 6. Ensure a Function URL exists (on the unqualified function).
 if ! aws lambda get-function-url-config --function-name "$FUNCTION_NAME" --region "$AWS_REGION" >/dev/null 2>&1; then
   echo "==> Creating Function URL (auth: ${FUNCTION_URL_AUTH})"
   aws lambda create-function-url-config \
@@ -312,7 +273,6 @@ if ! aws lambda get-function-url-config --function-name "$FUNCTION_NAME" --regio
     --auth-type "$FUNCTION_URL_AUTH" \
     --region "$AWS_REGION" >/dev/null
   if [[ "$FUNCTION_URL_AUTH" == "NONE" ]]; then
-    # Public URL needs an explicit resource policy permitting unauthenticated invokes.
     aws lambda add-permission \
       --function-name "$FUNCTION_NAME" \
       --statement-id FunctionURLAllowPublicAccess \

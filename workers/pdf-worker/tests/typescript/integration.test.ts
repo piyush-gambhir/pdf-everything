@@ -14,7 +14,6 @@ import { createHttpServer } from '../../deploy/docker/http.js';
 
 const chromium = process.env.RUN_BROWSER_INTEGRATION === '1' ? resolveChromiumPath() : null;
 
-// The renderer keeps one browser for the whole file.
 afterAll(() => shutdownBrowser());
 
 function getServerOrigin(server: Server): string {
@@ -105,10 +104,8 @@ describe.skipIf(!chromium)('integration: the renderer is sealed', () => {
       <object data="${url('object')}"></object>
       <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==">
       ${pageBreaks(2)}</body></html>`);
-    // Give a stray connection time to land before checking.
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(hits).toEqual([]);
-    // The refresh did not replace the document with an error page.
     expect(countPdfPages(pdf)).toBe(3);
     expect(pdf.toString('latin1')).toContain('/Subtype /Image');
   }, 30_000);
@@ -152,7 +149,6 @@ describe.skipIf(!chromium)('integration: the renderer is sealed', () => {
   }, 60_000);
 });
 
-/** The browser process this test process started, if one is running. */
 function browserPid(): number | undefined {
   const rows = execFileSync('ps', ['-A', '-o', 'pid=,ppid=,stat='], { encoding: 'utf8' });
   for (const row of rows.trim().split('\n')) {
@@ -178,7 +174,6 @@ describe.skipIf(!chromium)('integration: one browser serves every render', () =>
     expect(countPdfPages(await renderHtmlToPdf('<p>two</p>'))).toBe(1);
     expect(browserPid()).toBe(first);
 
-    // Kill Chromium's whole process group, as a crash or the OOM killer would.
     process.kill(-first!, 'SIGKILL');
     await until(() => browserPid() !== first);
     expect(countPdfPages(await renderHtmlToPdf('<p>three</p>'))).toBe(1);

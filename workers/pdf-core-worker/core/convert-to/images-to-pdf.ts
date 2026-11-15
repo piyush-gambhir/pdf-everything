@@ -25,7 +25,6 @@ export async function imagesToPdf(
   for (const input of inputs) {
     const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
     const meta = await sharp(buf).metadata();
-    // sharp always reports JPEG as 'jpeg' (never 'jpg').
     const isJpeg = meta.format === 'jpeg';
 
     let imgBytes: Buffer = buf;
@@ -35,8 +34,6 @@ export async function imagesToPdf(
       asJpeg = true;
     }
 
-    // pdf-lib's embedJpg/embedPng misreads Node's slab-allocated Buffers
-    // (where byteOffset > 0). Copy into a tight Uint8Array first.
     const tight = Uint8Array.from(imgBytes);
     const embedded = asJpeg ? await doc.embedJpg(tight) : await doc.embedPng(tight);
 

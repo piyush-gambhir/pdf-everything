@@ -5,7 +5,6 @@ import { resolve } from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
-// Compare immutable published tags, or use "local" for the reviewed Node 26 images.
 const [beforeTag, afterTag] = process.argv.slice(2);
 if (!beforeTag || !afterTag) {
   throw new Error(
@@ -275,7 +274,6 @@ try {
           assert.ok(doc.getPages().every((p) => p.getRotation().angle === workload.rotation));
       }
     }
-    // Split outputs are persistent references. Delete benchmark data outside timing.
     if (workload.kind === 'split') {
       const result = JSON.parse(Buffer.from(bytes).toString());
       for (const file of result.files) {

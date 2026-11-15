@@ -10,9 +10,7 @@ import {
 export type { TemplateName };
 
 export interface MarkdownRenderOptions extends HtmlRenderOptions {
-  /** Visual template to apply. Defaults to 'github'. */
   template?: TemplateName;
-  /** Document title embedded in the generated HTML. */
   title?: string;
 }
 
@@ -21,7 +19,6 @@ const DEFAULT_OPTIONS = {
   margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
 };
 
-/** Render Markdown to PDF through the shared HTML renderer. */
 export async function renderMarkdownToPdf(
   markdown: string,
   options: MarkdownRenderOptions = {},

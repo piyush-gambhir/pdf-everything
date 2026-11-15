@@ -2,7 +2,6 @@ import type { HtmlRenderOptions, PdfFormat, PdfMargin } from './html.js';
 import type { MarkdownRenderOptions } from './markdown.js';
 import { TEMPLATE_NAMES, isTemplateName } from './templates/index.js';
 
-/** A request option that is unknown or out of range. */
 export class InvalidOptionsError extends Error {
   constructor(message: string) {
     super(message);
@@ -12,14 +11,12 @@ export class InvalidOptionsError extends Error {
 
 const FORMATS: readonly PdfFormat[] = ['A4', 'Letter', 'Legal'];
 const MARGIN_SIDES = ['top', 'right', 'bottom', 'left'] as const;
-/** A length Chromium's print settings accept: a number with px, in, cm or mm (px when bare). */
 const MARGIN_LENGTH = /^(?:\d{1,4}(?:\.\d{1,4})?|\.\d{1,4})(?:px|in|cm|mm)?$/i;
 const PAGE_KEYS = [
   'format',
   'printBackground',
   'preferCssPageSize',
   'margin',
-  // Kept because existing gateways send it; the render deadline still bounds it.
   'navigationTimeoutMs',
 ] as const;
 
@@ -86,10 +83,6 @@ function parsePageOptions(value: Record<string, unknown>): HtmlRenderOptions {
   return options;
 }
 
-/**
- * Validate the `options` of an HTML render request. Only page settings are
- * accepted; anything else (a browser path, launch flags) is refused.
- */
 export function parseHtmlOptions(raw: unknown): HtmlRenderOptions {
   if (raw === undefined) return {};
   if (!isPlainObject(raw)) throw new InvalidOptionsError('Field "options" must be an object.');
@@ -97,7 +90,6 @@ export function parseHtmlOptions(raw: unknown): HtmlRenderOptions {
   return parsePageOptions(raw);
 }
 
-/** Validate the `options` of a Markdown render request: page settings plus template and title. */
 export function parseMarkdownOptions(raw: unknown): MarkdownRenderOptions {
   if (raw === undefined) return {};
   if (!isPlainObject(raw)) throw new InvalidOptionsError('Field "options" must be an object.');

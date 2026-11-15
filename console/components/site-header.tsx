@@ -11,12 +11,8 @@ import { DOCS_URL } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
-/** Resolve the current route to a page title plus its category. */
 function useRouteLabel() {
   const pathname = usePathname()
-  // usePathname() is already basePath-relative, so the tool id is just the
-  // path segment. Strip BOTH slashes — `trailingSlash: true` means the path is
-  // "/merge/", and leaving the trailing slash breaks the lookup.
   const id = pathname.replace(/^\/+|\/+$/g, "") || null
   const tool = id ? TOOLS.find((t) => t.id === id) : undefined
 
@@ -31,9 +27,6 @@ function useRouteLabel() {
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme()
 
-  // The icon is swapped by CSS off the `dark` class next-themes puts on <html>,
-  // rather than by mount state. That avoids both a hydration mismatch and the
-  // first-paint icon flicker, with no effect needed.
   return (
     <Button
       type="button"

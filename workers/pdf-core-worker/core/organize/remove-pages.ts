@@ -14,7 +14,6 @@ export async function removePages(
     throw new EmptyInputError('Cannot remove all pages — at least one page must remain');
   }
 
-  // Remove from highest index to lowest to keep indices stable.
   const sortedDesc = [...toRemove].sort((a, b) => b - a);
   for (const page of sortedDesc) doc.removePage(page - 1);
 

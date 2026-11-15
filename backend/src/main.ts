@@ -6,9 +6,6 @@ import { AppModule } from './app.module.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 
 async function bootstrap() {
-  // Document renders arrive as JSON with inlined assets (data URI logos), so the
-  // express default of 100kb is far too small. Cap generously; the workers cap
-  // the actual render size.
   const bodyLimit = process.env.API_JSON_BODY_LIMIT ?? '8mb';
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
   app.useBodyParser('json', { limit: bodyLimit });

@@ -9,21 +9,14 @@ import {
   type ExecuteResult,
 } from './protocol.js';
 
-// Nest sends buffered inputs as base64 JSON. Allow roughly 100 MiB of decoded
-// input plus envelope overhead; the gateway needs its own upload limits.
 const DEFAULT_MAX_REQUEST_BYTES = 150 * 1024 * 1024;
 
-/**
- * Operations one process runs at once. They share one event loop, so more at
- * once adds no throughput, only the memory of every decoded input and output.
- */
 const DEFAULT_MAX_ACTIVE_OPERATIONS = 2;
 
 export interface CoreWorkerServerOptions {
   port: number;
   apiToken: string | null;
   maxRequestBytes?: number;
-  /** Operations at once; one more is refused with 503 (default 2). */
   maxActiveOperations?: number;
 }
 
@@ -131,7 +124,6 @@ export function createCoreWorkerServer(options: CoreWorkerServerOptions): Promis
       return;
     }
 
-    // Refused before the body is read, so a burst holds no memory either.
     if (active >= maxActive) {
       res.setHeader('Retry-After', '1');
       json(res, 503, {
