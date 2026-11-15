@@ -17,20 +17,14 @@ export interface PdfMargin {
 export interface HtmlRenderOptions {
   format?: PdfFormat;
   printBackground?: boolean;
-  /** Honor the document's CSS `@page` size instead of forcing `format`. */
   preferCssPageSize?: boolean;
   margin?: PdfMargin;
-  /** Max time for loading the document (ms). The render deadline still applies. */
   navigationTimeoutMs?: number;
 }
 
-/** Bounds on one render. Exceeding any of them fails the render. */
 export interface RenderLimits {
-  /** Most pages a PDF may have. */
   maxPages: number;
-  /** Largest PDF, in bytes. */
   maxOutputBytes: number;
-  /** Whole-render deadline (waiting for the browser to PDF bytes), in ms. */
   deadlineMs: number;
 }
 
@@ -40,45 +34,23 @@ export const DEFAULT_LIMITS: RenderLimits = {
   deadlineMs: 50_000,
 };
 
-/** Operator and library settings. Never taken from a request body. */
 export interface RenderRuntime {
-  /** Explicit Chromium/Chrome binary; overrides auto-resolution. */
   executablePath?: string;
   limits?: Partial<RenderLimits>;
-  /**
-   * Trusted DOM post-processing, run through DevTools after the document loads.
-   * Scripts inside the document never run; this is how a built-in template
-   * adjusts its own markup.
-   */
   postProcess?: () => void;
-  /** Called once per render, after its page is closed, with how it went. */
   onTimings?: (timings: RenderTimings) => void | Promise<void>;
 }
 
 export type RenderErrorCode = 'page_limit_exceeded' | 'output_too_large' | 'render_timeout';
 
-/**
- * The steps of one render, in order: waiting for the shared browser, opening
- * and arming a page, loading the document, the trusted post-process (Markdown
- * templates), printing, checking the PDF, and closing the page.
- */
 export type RenderPhase =
   'browser' | 'newPage' | 'setContent' | 'postProcess' | 'pdf' | 'validate' | 'close';
 
-/**
- * How one render went, for an operator's log: how long each step took and how
- * big the result was. It never holds any of the document's contents.
- */
 export interface RenderTimings {
-  /** `ok`, the limit that stopped the render, or `failed`. */
   outcome: 'ok' | RenderErrorCode | 'failed';
-  /** The step that was running when the render failed or ran out of time. */
   failedIn?: RenderPhase;
-  /** `warm` when Chromium was already up; `launch` when the render waited for a start. */
   browser: 'warm' | 'launch';
-  /** Whole milliseconds spent in each step that ran, and in all. */
   ms: Partial<Record<RenderPhase, number>> & { total: number };
-  /** The PDF's pages and bytes, once printed. */
   pages?: number;
   bytes?: number;
 }
@@ -101,15 +73,6 @@ const DEFAULT_OPTIONS = {
   navigationTimeoutMs: 30_000,
 };
 
-/**
- * Chromium flags. Besides request interception (below), every connection is
- * sent to a closed local proxy port and every host name fails to resolve, so a
- * request that somehow escapes interception (a preconnect, a DNS prefetch)
- * still reaches nothing. DevTools runs over a pipe, not a debugging port.
- * Printing needs no GPU process: on a host without a GPU or a working
- * software renderer (AWS Lambda), Chromium otherwise starts and loses two to
- * four of them on every launch.
- */
 const CHROMIUM_ARGS = [
   '--no-sandbox',
   '--disable-setuid-sandbox',
@@ -122,7 +85,6 @@ const CHROMIUM_ARGS = [
   '--host-resolver-rules=MAP * ~NOTFOUND',
 ];
 
-/** Resolve Chromium/Chrome from the environment or common install paths. */
 export function resolveChromiumPath(): string | null {
   const fromEnv = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
   if (fromEnv && existsSync(fromEnv)) return fromEnv;
@@ -142,11 +104,6 @@ export function resolveChromiumPath(): string | null {
   return null;
 }
 
-/**
- * Count the page objects of a Chromium-generated PDF (Chromium never compresses
- * them into object streams). Strings, comments and stream contents are skipped,
- * so a title that reads "/Type /Page" is not a page.
- */
 export function countPdfPages(pdf: Buffer): number {
   const text = pdf.toString('latin1');
   const isLetter = (char: string | undefined) => char !== undefined && /[A-Za-z]/.test(char);
@@ -166,7 +123,7 @@ export function countPdfPages(pdf: Buffer): number {
         i++;
       }
     } else if (char === '<' && text[i + 1] === '<') {
-      i += 2; // a dictionary opens
+      i += 2;
     } else if (char === '<') {
       const end = text.indexOf('>', i);
       i = end === -1 ? text.length : end + 1;
@@ -175,9 +132,6 @@ export function countPdfPages(pdf: Buffer): number {
       !isLetter(text[i - 1]) &&
       (text[i + 6] === '\r' || text[i + 6] === '\n')
     ) {
-      // Skip the body by its declared /Length: binary data may itself hold
-      // the bytes "endstream". Chromium writes the length directly; an
-      // indirect or missing one falls back to the terminator.
       const dictionary = text.slice(text.lastIndexOf(' obj', i), i);
       const length = /\/Length\s+(\d+)(?!\d)(?!\s+\d+\s+R)/.exec(dictionary);
       const bodyStart = i + 6 + (text[i + 6] === '\r' && text[i + 7] === '\n' ? 2 : 1);
@@ -197,11 +151,6 @@ export function countPdfPages(pdf: Buffer): number {
   return pages;
 }
 
-/**
- * The document loads with no network: data: URIs load; a navigation (a meta
- * refresh, a frame) is answered with 204 so the document stays in place; every
- * other request is aborted.
- */
 function blockNetwork(request: HTTPRequest): void {
   if (request.isInterceptResolutionHandled()) return;
   if (request.url().startsWith('data:')) {
@@ -213,7 +162,6 @@ function blockNetwork(request: HTTPRequest): void {
   }
 }
 
-/** How long a browser may take to start, and a page to close. */
 const LAUNCH_TIMEOUT_MS = DEFAULT_LIMITS.deadlineMs;
 const CLOSE_TIMEOUT_MS = 5_000;
 
@@ -230,7 +178,6 @@ interface SharedBrowser {
   executablePath: string;
   browser: Promise<Browser>;
   kill: AbortController;
-  /** Set once the browser is up. */
   ready?: boolean;
 }
 
@@ -245,7 +192,6 @@ function discard(entry: SharedBrowser): void {
   entry.kill.abort();
 }
 
-/** The shared browser for this binary, launching it if there is none. */
 function sharedBrowser(executablePath: string): SharedBrowser {
   if (shared?.executablePath === executablePath) return shared;
   if (shared) discard(shared);
@@ -258,15 +204,9 @@ function sharedBrowser(executablePath: string): SharedBrowser {
     args: CHROMIUM_ARGS,
     signal: kill.signal,
     timeout: LAUNCH_TIMEOUT_MS,
-    // The browser outlives any one render, so it must not change how the
-    // host process answers these signals; Chromium exits with its pipe.
     handleSIGTERM: false,
     handleSIGHUP: false,
   });
-  // Puppeteer's `timeout` does not bound a pipe connection's first DevTools
-  // commands, and a Chromium that dies while its first tab attaches leaves the
-  // launch pending for good, so the launch is bounded here: past the limit
-  // Chromium is killed and the launch rejects, whatever Puppeteer does.
   let gaveUp: NodeJS.Timeout | undefined;
   const limit = new Promise<never>((_, reject) => {
     gaveUp = setTimeout(() => {
@@ -281,7 +221,6 @@ function sharedBrowser(executablePath: string): SharedBrowser {
     browser: Promise.race([launching, limit]),
   };
   shared = entry;
-  // A browser that dies or never starts is relaunched by the next render.
   entry.browser.then(
     (browser) => {
       clearTimeout(gaveUp);
@@ -297,13 +236,6 @@ function sharedBrowser(executablePath: string): SharedBrowser {
   return entry;
 }
 
-/**
- * A new page on the shared browser, tried twice. A browser that failed to
- * start (a warm-up frozen with its Lambda environment times out on thaw) is
- * launched again. One that cannot open a page is replaced: it has died, perhaps
- * unnoticed yet, or it left a half-made page that would outlive the render. A
- * render its deadline has abandoned starts nothing new.
- */
 async function openPage(
   executablePath: string,
   abandoned: () => boolean,
@@ -330,7 +262,6 @@ async function openPage(
   }
 }
 
-/** Resolve the browser binary from the runtime settings or the environment. */
 function browserPath(runtime: Pick<RenderRuntime, 'executablePath'>): string {
   const executablePath = runtime.executablePath ?? resolveChromiumPath();
   if (!executablePath) {
@@ -341,17 +272,12 @@ function browserPath(runtime: Pick<RenderRuntime, 'executablePath'>): string {
   return executablePath;
 }
 
-/**
- * Start the shared browser ahead of the first render (a server calls this at
- * startup and from its readiness check). Resolves once Chromium is up.
- */
 export async function prepareBrowser(
   runtime: Pick<RenderRuntime, 'executablePath'> = {},
 ): Promise<void> {
   await sharedBrowser(browserPath(runtime)).browser;
 }
 
-/** Close the shared browser, if any (a CLI or a test calls this when done). */
 export async function shutdownBrowser(): Promise<void> {
   const entry = shared;
   if (!entry) return;
@@ -361,7 +287,6 @@ export async function shutdownBrowser(): Promise<void> {
   if ((await bounded(browser.close(), CLOSE_TIMEOUT_MS)) === 'timeout') entry.kill.abort();
 }
 
-/** Settle with the promise's outcome, or 'timeout' after `ms`. */
 async function bounded(promise: Promise<unknown>, ms: number): Promise<'done' | 'timeout'> {
   let timer: NodeJS.Timeout | undefined;
   const gaveUp = new Promise<'timeout'>((resolve) => {
@@ -378,20 +303,10 @@ async function bounded(promise: Promise<unknown>, ms: number): Promise<'done' | 
   return outcome;
 }
 
-/**
- * Close one render's page, which ends its renderer. If Chromium cannot, the
- * browser itself is killed and the next render starts a new one.
- */
 async function closePage(page: Page, entry: SharedBrowser): Promise<void> {
   if ((await bounded(page.close(), CLOSE_TIMEOUT_MS)) === 'timeout') discard(entry);
 }
 
-/**
- * Render a complete HTML document to PDF bytes.
- *
- * Scripts in the document do not run and nothing is fetched over the network:
- * embed images and fonts as data: URIs.
- */
 export async function renderHtmlToPdf(
   html: string,
   options: HtmlRenderOptions = {},
@@ -422,16 +337,13 @@ export async function renderHtmlToPdf(
   const startedAt = Date.now();
   const remainingMs = () => Math.max(1, limits.deadlineMs - (Date.now() - startedAt));
 
-  // The page being rendered, once open, and the browser it belongs to.
   let open: { page: Page; entry: SharedBrowser } | undefined;
   let finished = false;
 
-  // Each step's time, counted until the render is settled: an abandoned
-  // render that carries on cannot change what is reported.
   const timings: RenderTimings = {
     outcome: 'ok',
     browser: 'warm',
-    ms: {} as RenderTimings['ms'], // `total` is set last, once the page is closed
+    ms: {} as RenderTimings['ms'],
   };
   let phase: RenderPhase = 'browser';
   let phaseStart = performance.now();
@@ -452,7 +364,6 @@ export async function renderHtmlToPdf(
       opening: () => step('newPage'),
     });
     if (finished) {
-      // The deadline passed while the page was opening.
       void closePage(page, entry);
       throw new Error('The render was abandoned.');
     }
@@ -461,8 +372,6 @@ export async function renderHtmlToPdf(
     await page.setRequestInterception(true);
     page.on('request', blockNetwork);
 
-    // `load` waits for the document's subresources (all data: URIs); fonts
-    // that layout requests later are awaited by `page.pdf` (`waitForFonts`).
     step('setContent');
     await page.setContent(html, {
       waitUntil: 'load',
@@ -473,8 +382,6 @@ export async function renderHtmlToPdf(
       await page.evaluate(runtime.postProcess);
     }
 
-    // Print at most one page past the cap: enough to detect an oversized
-    // document without laying out all of it.
     step('pdf');
     const pdf = Buffer.from(
       await page.pdf({
@@ -519,7 +426,6 @@ export async function renderHtmlToPdf(
   });
 
   const rendering = render();
-  // After the deadline wins, the abandoned render may still reject.
   rendering.catch(() => undefined);
 
   try {
@@ -534,8 +440,6 @@ export async function renderHtmlToPdf(
   } finally {
     finished = true;
     clearTimeout(timer);
-    // Closing the page stops a render the deadline abandoned. A render still
-    // waiting for the browser leaves the launch running for the next.
     const closing = performance.now();
     if (open) {
       await closePage(open.page, open.entry);
@@ -546,12 +450,9 @@ export async function renderHtmlToPdf(
   }
 }
 
-/** Hand the timings over; a failing logger, sync or async, never fails the render. */
 function report(onTimings: RenderRuntime['onTimings'], timings: RenderTimings): void {
   try {
     const reported = onTimings?.(timings);
     if (reported instanceof Promise) reported.catch(() => undefined);
-  } catch {
-    // The render's own outcome stands.
-  }
+  } catch {}
 }

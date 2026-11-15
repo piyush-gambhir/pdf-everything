@@ -17,18 +17,18 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write # OIDC token for the Turborepo Remote Cache
+      id-token: write
     steps:
       - uses: actions/checkout@v7
 
       - name: Set up Turborepo Remote Cache
-        # Fork and Dependabot PRs cannot request an OIDC token; they run with the local cache only.
+
         if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
-        uses: vercel/setup-turborepo-remote-cache-action@49d7b1b46ba4c9251e1977986bfe18336feabc8f # v1.1.0
+        uses: vercel/setup-turborepo-remote-cache-action@49d7b1b46ba4c9251e1977986bfe18336feabc8f
         with:
           team: piyushgambhir-personal
 
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
         with:
           version: 12.15.0
 

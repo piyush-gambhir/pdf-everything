@@ -21,13 +21,11 @@ import { respondWithPdf } from '../../common/respond.js';
 import { FilesService } from '../../files/files.service.js';
 import { renderHtml, renderMarkdown } from '../../workers/pdf-render-worker.client.js';
 
-/** A zod schema as an OpenAPI schema object. */
 function openApiSchema(schema: z.ZodType, io: 'input' | 'output') {
   const { $schema: _dialect, ...body } = z.toJSONSchema(schema, { io });
   return body;
 }
 
-/** A render request as OpenAPI documents it: the schema that validates it. */
 function requestBody(schema: z.ZodType): ApiBodyOptions {
   return {
     description:

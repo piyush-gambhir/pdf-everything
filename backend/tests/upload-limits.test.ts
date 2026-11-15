@@ -7,7 +7,6 @@ import { join } from 'node:path';
 import { createServer } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-// A render worker that answers every render with a PDF and records the body.
 const rendered: unknown[] = [];
 const worker = createServer((req, res) => {
   let body = '';
@@ -19,7 +18,6 @@ const worker = createServer((req, res) => {
 });
 await new Promise<void>((resolve) => worker.listen(0, '127.0.0.1', resolve));
 
-// Read when the modules load: one MiB uploads, a throwaway file store, the worker.
 const storage = mkdtempSync(join(tmpdir(), 'pdf-everything-uploads-'));
 process.env.MAX_UPLOAD_MB = '1';
 process.env.STORAGE_DIR = storage;

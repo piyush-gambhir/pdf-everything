@@ -1,28 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── Deploy pdf-worker to GCP Cloud Run ───────────────────────────────────────
-#
-# Usage:
-#   ./deploy/cloudrun/deploy.sh                # deploy latest
-#   ./deploy/cloudrun/deploy.sh --from-ghcr    # copy the published GHCR image
-#
-# Configuration:
-#   ALLOW_UNAUTHENTICATED=false  # private Cloud Run IAM (safe default)
-#   API_TOKEN_SECRET=            # Secret Manager secret; required if public
-#   API_TOKEN_SECRET_VERSION=1   # pin the deployed secret version
-#   CONCURRENCY=2                # Chromium-heavy requests per instance
-#
-# Prerequisites (one-time):
-#   gcloud auth login
-#   gcloud config set project "${GCP_PROJECT_ID}"
-#   gcloud services enable \
-#     run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
-#
-#   # Create Artifact Registry repo
-#   gcloud artifacts repositories create pdf-everything \
-#     --repository-format=docker --location="${GCP_REGION}" --description="Docker images"
-#   gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -45,7 +23,6 @@ for arg in "$@"; do
   esac
 done
 
-# ── Build ────────────────────────────────────────────────────────────────────
 if [[ "${FROM_GHCR}" -eq 1 ]]; then
   SOURCE_IMAGE="${SOURCE_IMAGE:-ghcr.io/piyush-gambhir/pdf-everything-pdf-worker:latest}"
   echo "[deploy] Copying ${SOURCE_IMAGE}"
@@ -60,7 +37,6 @@ else
     .
 fi
 
-# ── Deploy ───────────────────────────────────────────────────────────────────
 ACCESS_ARGS=(--no-allow-unauthenticated)
 SECRET_ARGS=()
 
@@ -97,7 +73,6 @@ gcloud run deploy "${SERVICE_NAME}" \
   "${SECRET_ARGS[@]}" \
   --project="${GCP_PROJECT_ID}"
 
-# ── Smoke check ──────────────────────────────────────────────────────────────
 SERVICE_URL="$(gcloud run services describe "${SERVICE_NAME}" \
   --region="${GCP_REGION}" --format='value(status.url)' --project="${GCP_PROJECT_ID}")"
 

@@ -3,7 +3,6 @@ import { academicTemplate } from './academic.js';
 import { rcaPostProcess, rcaTemplate } from './rca.js';
 
 export type TemplateName = 'github' | 'academic' | 'rca';
-/** `bodyHtml` is markup; `title` is plain text, which the template escapes. */
 export type TemplateFunction = (bodyHtml: string, title: string) => string;
 
 export const TEMPLATES: Record<TemplateName, TemplateFunction> = {
@@ -12,7 +11,6 @@ export const TEMPLATES: Record<TemplateName, TemplateFunction> = {
   rca: rcaTemplate,
 };
 
-/** Trusted markup adjustments a template runs after its document loads. */
 export const TEMPLATE_POST_PROCESS: Partial<Record<TemplateName, () => void>> = {
   rca: rcaPostProcess,
 };

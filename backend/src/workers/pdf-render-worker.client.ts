@@ -17,11 +17,6 @@ const workerOrigin = (process.env.PDF_RENDER_WORKER_URL ?? 'http://127.0.0.1:801
   '',
 );
 const workerToken = process.env.PDF_RENDER_WORKER_TOKEN?.trim();
-/**
- * The whole exchange with the worker, response body included. Longer than the
- * worker's own 50-second render deadline plus page cleanup, so a slow render
- * normally ends with the worker's answer rather than this one.
- */
 const workerTimeoutMs = timerMs(process.env.PDF_RENDER_WORKER_TIMEOUT_MS) ?? 60_000;
 
 async function render(path: 'html' | 'markdown', body: unknown): Promise<Buffer> {

@@ -236,13 +236,7 @@ ${bodyHtml}
 </html>`;
 }
 
-/**
- * The RCA layout's markup adjustments. Page scripts never run in the renderer,
- * so this runs as trusted DevTools post-processing (it must be self-contained:
- * it is serialized into the page).
- */
 export function rcaPostProcess(): void {
-  // 1. Mark the first headerless two-column table as the metadata table.
   for (const table of Array.from(document.querySelectorAll('table'))) {
     if (!table.querySelector('thead') && table.querySelector('tr')) {
       const firstRowCells = table.querySelectorAll('tr:first-child td, tr:first-child th');
@@ -253,7 +247,6 @@ export function rcaPostProcess(): void {
     }
   }
 
-  // 2. Wrap RC-N headings and their following content in callout divs.
   for (const heading of Array.from(document.querySelectorAll('h3'))) {
     const text = heading.textContent ?? '';
     if (!/^RC-\d+/i.test(text)) continue;
@@ -266,7 +259,6 @@ export function rcaPostProcess(): void {
       severityClass = 'rc-callout-medium';
     }
 
-    // Collect following siblings until the next heading or rule.
     const siblings: ChildNode[] = [];
     let node = heading.nextSibling;
     while (node) {

@@ -132,11 +132,9 @@ describe('Nest PDF core worker client', () => {
 });
 
 describe('worker deadlines', () => {
-  // Each client reads its deadline when it loads.
   beforeEach(() => vi.resetModules());
   afterEach(() => vi.unstubAllEnvs());
 
-  /** A fetch that never answers, as a hung worker; it ends only when aborted. */
   const hangs = vi.fn(
     (_url: string, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) =>

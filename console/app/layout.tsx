@@ -31,10 +31,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     >
       <body>
         <ThemeProvider>
-          {/* Fixed-height shell. The shell itself never scrolls — only the
-              content pane does — which is what keeps the sidebar pinned.
-              (A growing `min-h-*` shell scrolls the whole document and drags
-              the sidebar out of view.) */}
           <div className="flex h-svh overflow-hidden">
             <SiteSidebar />
             <div className="flex min-w-0 flex-1 flex-col">

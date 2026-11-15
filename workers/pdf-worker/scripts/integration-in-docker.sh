@@ -1,13 +1,4 @@
 #!/usr/bin/env sh
-# Run the real-Chromium integration tests inside a pdf-worker image, against
-# the Chromium and fonts that image ships. CI runs them this way (its arm64
-# runner has no Chrome); run it locally the same way after building an image:
-#
-#   docker build -f deploy/docker/Dockerfile -t pdf-worker:local .
-#   sh scripts/integration-in-docker.sh pdf-worker:local
-#
-# The checkout is mounted read-only and copied inside, without node_modules,
-# so the image installs its own (musl) dependencies.
 
 set -eu
 

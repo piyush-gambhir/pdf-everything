@@ -9,11 +9,8 @@ export async function extractText(
   input: Buffer | Uint8Array,
   opts: ExtractTextOptions = {},
 ): Promise<{ text: string; pageCount: number }> {
-  // Copy into a fresh Uint8Array: pdf.js may detach the underlying ArrayBuffer,
-  // which would corrupt a caller-owned Buffer.
   const data = new Uint8Array(input);
 
-  // `destroy()` lives on the loading task, not the document proxy.
   const task = getDocument({
     data,
     useSystemFonts: true,

@@ -39,7 +39,6 @@ const workerOrigin = (process.env.PDF_CORE_WORKER_URL ?? 'http://127.0.0.1:8020'
   '',
 );
 const workerToken = process.env.PDF_CORE_WORKER_TOKEN?.trim();
-/** The whole exchange with the worker, response body included. */
 const workerTimeoutMs = timerMs(process.env.PDF_CORE_WORKER_TIMEOUT_MS) ?? 120_000;
 
 async function execute(

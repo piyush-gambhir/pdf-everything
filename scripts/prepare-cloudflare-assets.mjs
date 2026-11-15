@@ -1,15 +1,3 @@
-/**
- * Stage a Next static export for a Cloudflare assets Worker.
- *
- * A Worker resolves assets against the REQUEST PATH. With a basePath, the
- * request is /pdf-everything/console/merge/ while `out/` holds merge/ at its
- * root — pointing the Worker straight at `out/` therefore 404s everything.
- *
- * So mirror the basePath as real directories:
- *   out/                     ->  .cloudflare/assets/<base-path>/
- *
- * Usage: node ../scripts/prepare-cloudflare-assets.mjs pdf-everything/console
- */
 import { cp, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 

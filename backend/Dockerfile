@@ -1,4 +1,3 @@
-# ---------- prepare: prune the workspace to what this image needs ----------
 FROM --platform=$BUILDPLATFORM node:26.13.0-bookworm-slim AS prepare
 RUN npm install --global --allow-scripts=pnpm pnpm@12.15.0
 ENV PNPM_HOME=/pnpm

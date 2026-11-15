@@ -1,19 +1,4 @@
 #!/usr/bin/env node
-/**
- * Render a Markdown file to PDF from the command line.
- *
- *   tsx scripts/render.ts <input.md> [options]
- *
- * Options:
- *   --template <github|academic|rca>   Visual template (default: github)
- *   --out <path>                       Output PDF path (default: <input>.pdf)
- *   --title <string>                   PDF title metadata (default: first H1 or filename)
- *   --format <A4|Letter|Legal>         Page format (default: A4)
- *   --chrome <path>                    Explicit Chromium/Chrome binary
- *
- * If no Chrome is found on the system, the locally-downloaded
- * Chrome-for-Testing (./chrome) is used automatically.
- */
 import {
   readFileSync,
   writeFileSync,
@@ -114,14 +99,12 @@ function parseArgs(argv: string[]): CliArgs {
   };
 }
 
-/** Derive a title from the first `# H1`, else the filename. */
 function deriveTitle(markdown: string, inputPath: string): string {
   const h1 = markdown.match(/^#\s+(.+?)\s*$/m);
   if (h1) return h1[1];
   return basename(inputPath, extname(inputPath));
 }
 
-/** Recursively look for a Chrome/Chromium binary under a directory (bounded). */
 function findChromeUnder(dir: string, depth = 0): string | null {
   if (depth > 6 || !existsSync(dir)) return null;
   let entries: string[];
@@ -136,7 +119,6 @@ function findChromeUnder(dir: string, depth = 0): string | null {
     'chromium',
     'chrome',
   ]);
-  // Files first.
   for (const name of entries) {
     const full = join(dir, name);
     let st;
@@ -147,7 +129,6 @@ function findChromeUnder(dir: string, depth = 0): string | null {
     }
     if (st.isFile() && targets.has(name)) return full;
   }
-  // Then descend.
   for (const name of entries) {
     const full = join(dir, name);
     try {
@@ -156,7 +137,6 @@ function findChromeUnder(dir: string, depth = 0): string | null {
         if (found) return found;
       }
     } catch {
-      /* ignore */
     }
   }
   return null;
@@ -167,10 +147,8 @@ function resolveChrome(explicit?: string): string {
     if (!existsSync(explicit)) fail(`--chrome path not found: ${explicit}`);
     return explicit;
   }
-  // env var + standard system locations
   const standard = resolveChromiumPath();
   if (standard) return standard;
-  // locally-downloaded Chrome-for-Testing (@puppeteer/browsers install chrome)
   const local = findChromeUnder(join(PKG_ROOT, 'chrome'));
   if (local) return local;
   fail(
@@ -197,7 +175,6 @@ async function main() {
   console.log(`Saved → ${args.out} (${(pdf.length / 1024).toFixed(1)} KB)`);
 }
 
-// The renderer keeps its browser for the next render; a CLI closes it.
 main()
   .catch((err) => {
     console.error(err instanceof Error ? err.message : err);

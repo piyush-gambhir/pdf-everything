@@ -16,12 +16,6 @@ import { TEMPLATE_NAMES } from '../../core/templates/index.js';
 
 const DEFAULT_MAX_REQUEST_BYTES = 5 * 1024 * 1024;
 
-/**
- * Renders one process runs at once. Each is a page in the shared Chromium, so
- * a burst would otherwise open pages without bound and exhaust memory. Lambda
- * sends one request at a time and each releases its slot before its response
- * is written, so one-at-a-time callers are never refused.
- */
 const DEFAULT_MAX_ACTIVE_RENDERS = 4;
 
 class RequestTooLargeError extends Error {}
@@ -36,11 +30,8 @@ export interface HttpServerOptions {
   apiToken: string | null;
   port: number;
   maxRequestBytes?: number;
-  /** Page, size and time bounds for every render (defaults: DEFAULT_LIMITS). */
   limits?: Partial<RenderLimits>;
-  /** Renders at once; one more is refused with 503 (default 4). */
   maxActiveRenders?: number;
-  /** Write one JSON line per render to stdout with its step timings (see logRender). */
   logRenderTimings?: boolean;
 }
 
@@ -92,24 +83,17 @@ function isAuthorized(req: IncomingMessage, apiToken: string | null): boolean {
   return !apiToken || req.headers.authorization?.trim() === `Bearer ${apiToken}`;
 }
 
-/**
- * One line per render, at info level: the route, the outcome (and the step a
- * failure stopped in), whether Chromium was warm, each step's milliseconds, the
- * request's and the PDF's sizes, and the page count. Never document contents.
- */
 function logRender(route: 'html' | 'markdown', inputBytes: number, timings: RenderTimings) {
   // eslint-disable-next-line no-console
   console.log(JSON.stringify({ level: 'info', msg: 'render', route, ...timings, inputBytes }));
 }
 
-/** The answer to a render request, decided before anything is written. */
 type Reply = { status: number; body: unknown } | { pdf: Buffer };
 
 function bad(message: string): Reply {
   return { status: 400, body: { error: 'bad_request', message } };
 }
 
-/** Options the request may not set are a 400. */
 function refusedOptions(error: unknown): Reply {
   return bad(error instanceof InvalidOptionsError ? error.message : 'Invalid options.');
 }
@@ -143,7 +127,6 @@ function send(res: ServerResponse, reply: Reply): void {
   res.end(reply.pdf);
 }
 
-/** HTTP server for browser-based HTML and Markdown PDF rendering. */
 export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
   const maxRequestBytes = opts.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
   const maxActiveRenders = opts.maxActiveRenders ?? DEFAULT_MAX_ACTIVE_RENDERS;
@@ -154,7 +137,6 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
       : runtime;
   let activeRenders = 0;
 
-  /** Read, validate and render one request. */
   async function handleRender(req: IncomingMessage, pathname: string): Promise<Reply> {
     let body: RenderRequest;
     let inputBytes: number;
@@ -227,9 +209,6 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
       return;
     }
 
-    // Ready once the shared browser is up: the first check waits for the
-    // launch, so a platform that gates traffic on it (the Lambda image does)
-    // never sends a render to a cold browser.
     if (method === 'GET' && pathname === '/ready') {
       if (!resolveChromiumPath()) {
         json(res, 503, {
@@ -266,7 +245,6 @@ export function createHttpServer(opts: HttpServerOptions): Promise<Server> {
       return;
     }
 
-    // Refused before the body is read, so a burst holds no memory either.
     if (activeRenders >= maxActiveRenders) {
       res.setHeader('Retry-After', '1');
       json(res, 503, {

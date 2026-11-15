@@ -1,22 +1,8 @@
-/**
- * Shared design foundation for pdf-everything.
- *
- * Imported by BOTH console/app/globals.css and web/app/global.css so the app,
- * the marketing site and the docs read as one product. Surface density and
- * motion deliberately differ per surface — only the foundation lives here.
- *
- * Edit here, never in a copy.
- */
 
 :root {
-    /* Light: page sits a touch off-white, cards rise to pure white,
-       sidebar recedes below the page. Three steps, zero hairlines. */
     --background: oklch(0.983 0 0);
     --surface-1: oklch(0.972 0 0);
     --surface-2: oklch(1 0 0);
-    /* Cards are already pure white, so the third step has to go *down* rather
-       than up — otherwise nested chips and hover states are invisible in light
-       mode (surface-2 and surface-3 were both white). */
     --surface-3: oklch(0.957 0 0);
 
     --foreground: oklch(0.185 0 0);
@@ -34,11 +20,9 @@
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.955 0 0);
 
-    /* shadcn's `accent` stays neutral — it is the menu/list hover wash. */
     --accent: oklch(0.945 0 0);
     --accent-foreground: oklch(0.205 0 0);
 
-    /* Brand accent, kept separate from shadcn's neutral `accent`. */
     --brand: oklch(0.54 0.19 273);
     --brand-foreground: oklch(0.99 0 0);
     --brand-soft: oklch(0.955 0.025 273);
@@ -65,15 +49,12 @@
     --sidebar-border: var(--border);
     --sidebar-ring: var(--ring);
 
-    /* Motion */
     --motion-fast: 120ms;
     --motion-base: 200ms;
     --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .dark {
-    /* Dark: elevation reads as lightness. Page is the floor,
-       sidebar and cards step up off it. */
     --background: oklch(0.145 0 0);
     --surface-1: oklch(0.167 0 0);
     --surface-2: oklch(0.205 0 0);
@@ -163,7 +144,3 @@
     font-weight: 600;
     text-transform: uppercase;
 }
-
-/* Fully hidden scrollbar — the region still scrolls by wheel, trackpad and
-   keyboard, but no track or thumb is ever painted. Used for the sidebar nav,
-   where a visible bar reads as clutter against a borderless surface. */

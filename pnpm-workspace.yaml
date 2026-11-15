@@ -5,9 +5,6 @@ packages:
   - 'types'
   - 'workers/pdf-core-worker'
 
-# Next 16.2.11 pins this newly published transitive dependency. Exempt only
-# the reviewed version so the security patch can ship without weakening the
-# default 24-hour quarantine for later releases.
 minimumReleaseAgeExclude:
   - baseline-browser-mapping@2.11.4
   - "@next/env@16.4.3"
@@ -29,21 +26,15 @@ minimumReleaseAgeExclude:
   - multer@2.5.0
   - undici@7.30.1
 
-# pnpm 12 build-script allowlist. Native modules must be allowed to run their
-# install scripts. better-sqlite3 13 ships prebuilt N-API binaries and has none.
 allowBuilds:
   '@nestjs/core': true
   esbuild: true
   sharp: true
   unrs-resolver: true
   workerd: true
-  # Denied: analytics/telemetry and browser-mocking postinstalls we don't need.
   '@scarf/scarf': false
   msw: false
 
-# Security floors for vulnerable transitive dependencies, each scoped to the
-# vulnerable range of one major line. Drop an entry once its parents ship a
-# patched version on their own.
 overrides:
   js-yaml@>=5.0.0 <5.4.1: 5.4.1
   multer@>=2.0.0 <2.5.0: 2.5.0
