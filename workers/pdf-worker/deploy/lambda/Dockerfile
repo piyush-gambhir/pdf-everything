@@ -1,27 +1,4 @@
-# AWS Lambda container image for pdf-worker.
-#
-# This runs the SAME HTTP server as the Docker/Cloud Run image, fronted by the
-# AWS Lambda Web Adapter, a Lambda extension that bridges the Lambda Runtime
-# API to a local web server. No application code changes are required: Lambda
-# invocations are translated into HTTP requests to the server on $PORT, and the
-# (binary) PDF response is returned base64-encoded. Invoke the function
-# directly with an HTTP event, or expose it with a Lambda Function URL.
-#
-# Build for the architecture of your Lambda function (arm64 is cheaper on
-# Graviton and native on Apple Silicon). The published image is multi-arch;
-# Lambda needs a single-architecture manifest, so deploy the per-platform
-# digest (see the deployment guide):
-#
-#   docker buildx build --platform linux/arm64 --provenance=false \
-#     -f deploy/lambda/Dockerfile -t <ecr-uri>:<tag> --push .
-#
-# See scripts/deploy-lambda.sh for the full ECR + function flow.
 
-# Pinned inputs. The base image is a multi-arch index digest (linux/amd64 and
-# linux/arm64); Chromium is an exact Alpine package version from that release.
-# Alpine keeps only the newest build of a package in a branch, so when it ships
-# a Chromium update this build fails at `apk add` until CHROMIUM_VERSION is
-# bumped: a renderer change is always a deliberate commit.
 ARG NODE_IMAGE=node:26.13.0-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94
 ARG CHROMIUM_VERSION=156.0.8078.79-r0
 ARG LAMBDA_ADAPTER_IMAGE=public.ecr.aws/awsguru/aws-lambda-adapter:1.1.0@sha256:17cfd08eff1dfea3f6a9a1e9c65fdac80aa4919b6085e746615530f43f57d2f1
@@ -48,18 +25,8 @@ FROM ${NODE_IMAGE} AS runner
 ARG CHROMIUM_VERSION
 WORKDIR /app
 
-# Lambda Web Adapter (the index digest covers both architectures; buildx takes
-# the one matching --platform).
 COPY --from=lambda-adapter /lambda-adapter /opt/extensions/lambda-adapter
 
-# The server and adapter share port 8080. The adapter's readiness check is
-# /ready, which answers once the shared Chromium is up, so the browser starts
-# during the environment's init and the first render finds it running; with
-# async init, a start slower than Lambda's 10-second init limit finishes inside
-# the first invocation instead of restarting the environment. Lambda's
-# filesystem is read-only outside /tmp, so Chromium writes its home and cache
-# data there. A buffered Lambda response is at most 6 MB after base64, so PDFs
-# stop at 4 MiB, and the render deadline sits under a 60-second function timeout.
 ENV NODE_ENV=production \
     PORT=8080 \
     AWS_LWA_PORT=8080 \
@@ -87,11 +54,6 @@ RUN apk add --no-cache \
     font-noto-emoji
 
 COPY deploy/fonts /usr/share/fonts/pdf-worker
-# Lambda's image filesystem keeps whole-second times, and fontconfig refuses a
-# cache whose directory time differs even in nanoseconds, so a cache built from
-# the precise times made every new environment rescan all the fonts (CJK
-# included) when Chromium first started. Truncate the font directories' times,
-# build the cache, and fail the build if any time is still fractional.
 RUN find /usr/share/fonts -type d -exec sh -c \
       'for d; do touch -c -d "@$(stat -c %Y "$d")" "$d"; done' _ {} + \
   && fc-cache -f \
@@ -100,5 +62,4 @@ RUN find /usr/share/fonts -type d -exec sh -c \
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 
-# Lambda manages the sandbox user; do not drop privileges here.
 CMD ["node", "dist/deploy/docker/index.js"]
