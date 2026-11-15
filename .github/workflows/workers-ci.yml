@@ -24,13 +24,14 @@ concurrency:
 jobs:
   verify-stack:
     name: Verify all operations through the gateway
+
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
         with:
           version: 12.15.0
 
@@ -62,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
         with:
           version: 12.15.0
 
@@ -117,7 +118,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
         with:
           version: 12.15.0
 
@@ -182,7 +183,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
 
       - uses: actions/setup-node@v7
         with:
@@ -212,6 +213,8 @@ jobs:
             --file workers/pdf-worker/deploy/docker/Dockerfile \
             --tag pdf-worker:ci \
             workers/pdf-worker
+
+
 
       - name: Run real-Chromium integration tests in the image
         run: sh workers/pdf-worker/scripts/integration-in-docker.sh pdf-worker:ci
