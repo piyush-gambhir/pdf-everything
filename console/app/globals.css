@@ -1,12 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/* Colour tokens + type scale — shared with web/ and the docs. */
 @import "../../styles/foundation.css";
 
 @custom-variant dark (&:is(.dark *));
 
-/* Console palette aligned with the CI Dashboard design system. */
 :root {
   --background: oklch(0.995 0 0);
   --surface-1: oklch(0.985 0 0);
@@ -113,13 +111,11 @@
   --color-foreground: var(--foreground);
   --color-background: var(--background);
 
-  /* Surface ladder — separation by elevation, not by lines. */
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
   --color-subtle-foreground: var(--subtle-foreground);
 
-  /* Brand accent — used sparingly (active nav, tool marks, focus). */
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-soft: var(--brand-soft);
@@ -147,9 +143,6 @@
     @apply outline-ring/50;
   }
 
-  /* The app shell owns scrolling: only inner regions scroll, never the
-       document. Without this the page grows past the viewport and drags the
-       full-height sidebar out of view with it. */
   html,
   body {
     height: 100%;
@@ -172,8 +165,6 @@
   }
 }
 
-/* Explicit console typography avoids relying on generated Tailwind text
-   tokens. These six steps are shared by the shell, tools, and form controls. */
 @layer utilities {
   .ui-display {
     font-size: 26px;
@@ -257,11 +248,9 @@
   }
 }
 
-/* Fully hidden scrollbar — the region still scrolls by wheel, trackpad and
-   keyboard, but no track or thumb is ever painted. */
 @utility scroll-none {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* legacy Edge/IE */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 
   &::-webkit-scrollbar {
     width: 0;
@@ -270,8 +259,6 @@
   }
 }
 
-/* Unobtrusive scrolling for inner regions: no reserved gutter, thumb stays
-   invisible until the region is hovered. */
 @utility scroll-subtle {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;

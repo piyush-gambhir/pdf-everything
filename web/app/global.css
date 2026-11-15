@@ -1,8 +1,6 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
-/* Colour tokens + type scale — shared with console/ so the site, the docs and
-   the app read as one product. */
 @import '../../styles/foundation.css';
 
 @custom-variant dark (&:is(.dark *));
@@ -127,8 +125,6 @@
     backdrop-filter: blur(1.25rem) saturate(140%);
   }
 
-  /* Fumadocs normally uses hairlines for hierarchy. This product uses
-       surface levels instead, matching the borderless console. */
   #nd-sidebar {
     background: var(--surface-1);
   }
@@ -197,8 +193,6 @@
   }
 }
 
-/* Marketing surfaces get a larger display step than the console does — same
-   foundation, different density. */
 @utility type-hero {
   font-size: clamp(2.5rem, 6vw, 4.5rem);
   line-height: 1.02;
